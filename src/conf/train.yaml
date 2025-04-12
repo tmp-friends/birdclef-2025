@@ -8,14 +8,28 @@ hydra:
 
 defaults:
   - _self_
-  - dir: dir
-  - model: Hoge
+  - dir: local
+  - model: EfficientNetB0
 
-n_folds: 5
+seed: 42
+device: "cuda"
+spectrogram_npy_path: "dummy" # 引数から指定
+
+num_folds: 5
 fold: 0
-n_epochs: 8
+num_epochs: 10
 train_batch_size: 32
 valid_batch_size: 256
 scheduler: "CosineAnnealingLR"
-lr: 1e-4
+optimizer: "AdamW"
+lr: 5e-4
+weight_decay: 1e-5
+T_max: 10
+min_lr: 1e-6
+criterion: "BCEWithLogitsLoss"
 
+# transform
+target_w: 256
+target_h: 256
+mixup_alpha: 0.5
+aug_prob: 0.5

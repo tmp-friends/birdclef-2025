@@ -35,13 +35,25 @@ class PreprocessConfig:
 class TrainConfig:
     dir: DirConfig
     model: ModelConfig
+    seed: int
+    device: str
+    spectrogram_npy_path: str
     num_folds: int
     fold: int
     num_epochs: int
     train_batch_size: int
     valid_batch_size: int
     scheduler: str
+    optimizer: str
     lr: float
+    weight_decay: float
+    T_max: int
+    min_lr: float
+    criterion: str
+    target_w: int
+    target_h: int
+    mixup_alpha: float
+    aug_prob: float
 
 
 @dataclass
