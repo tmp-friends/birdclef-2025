@@ -8,7 +8,7 @@ import concurrent.futures
 import hydra
 
 import numpy as np
-import polars as pl
+import pandas as pd
 import librosa
 import cv2
 import matplotlib.pyplot as plt
@@ -91,45 +91,34 @@ def main(cfg: PreprocessConfig):
     ref: https://www.kaggle.com/code/kadircandrisolu/transforming-audio-to-mel-spec-birdclef-25
     """
     # Load data
-    train_df = pl.read_csv(cfg.dir.train_csv, infer_schema_length=10000)
-    taxonomy_df = pl.read_csv(cfg.dir.taxonomy_csv)
+    train_df = pd.read_csv(cfg.dir.train_csv)
+    taxonomy_df = pd.read_csv(cfg.dir.taxonomy_csv)
     species_class_map = dict(
-        zip(
-            taxonomy_df.select("primary_label").to_series(),
-            taxonomy_df.select("class_name").to_series(),
-        )
+        zip(taxonomy_df["primary_label"], taxonomy_df["class_name"])
     )
     LOGGER.info(train_df.head())
 
     # mapping 辞書の作成
-    labels = sorted(train_df.select("primary_label").unique().to_series())
+    labels = sorted(train_df["primary_label"].unique())
     label_ids = list(range(len(labels)))
     label2id = dict(zip(labels, label_ids))
     id2label = dict(zip(label_ids, labels))
 
-    # polars による列変換
-    working_df = train_df.select(["primary_label", "rating", "filename"]).with_columns(
-        pl.col("primary_label").replace(label2id).alias("target"),
-        (cfg.dir.train_audio_dir + "/" + pl.col("filename")).alias("filepath"),
-        (
-            pl.col("filename").str.split("/").list.get(0)
-            + "-"
-            + pl.col("filename").str.split("/").list.get(-1).str.split(".").list.get(0)
-        ).alias("samplename"),
-        pl.col("primary_label")
-        .map_elements(
-            lambda v: species_class_map.get(v, "Unknown"), return_dtype=pl.Utf8
-        )
-        .alias("class"),
+    working_df = train_df[["primary_label", "rating", "filename"]].copy()
+    working_df["target"] = working_df.primary_label.map(label2id)
+    working_df["filepath"] = cfg.dir.train_audio_dir + "/" + working_df.filename
+    working_df["samplename"] = working_df.filename.map(
+        lambda x: x.split("/")[0] + "-" + x.split("/")[-1].split(".")[0]
+    )
+    working_df["class"] = working_df.primary_label.map(
+        lambda x: species_class_map.get(x, "Unknown")
     )
 
     total_samples = len(working_df)
     LOGGER.info(
         f"Total samples to process: {total_samples} out of {len(working_df)} available"
     )
-    LOGGER.info(
-        f"Samples by class: {working_df.select('class').to_series().value_counts()}"
-    )
+    LOGGER.info(f"Samples by class: {working_df['class'].value_counts()}")
 
     # 目標とする録音時間にサンプリングレートを乗算することで必要なサンプル数を算出
     target_samples = int(cfg.target_duration * cfg.fs)
@@ -143,7 +132,7 @@ def main(cfg: PreprocessConfig):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [
             executor.submit(process_audio, cfg, row, target_samples)
-            for row in working_df.iter_rows(named=True)
+            for _, row in working_df.iterrows()
         ]
 
         # 並列タスクの完了を待ち、結果を収集
@@ -163,20 +152,25 @@ def main(cfg: PreprocessConfig):
     np.save("all_bird_data.npy", all_bird_data, allow_pickle=True)
 
     # mel_spec を可視化
-    filtered_df = working_df.filter(
-        pl.col("samplename").is_in(list(all_bird_data.keys()))
-    )
-    unique_df = filtered_df.unique(subset=["class"])
+    samples = []
+    displayed_classes = set()
 
     max_samples = min(4, len(all_bird_data))
-    samples_df = unique_df.head(max_samples)
+    for i, row in working_df.iterrows():
+        if i >= len(working_df):
+            break
 
-    samples = (
-        samples_df.select(["samplename", "class", "primary_label"]).to_numpy().tolist()
-    )
+        if row["samplename"] in all_bird_data:
+            if row["class"] not in displayed_classes:
+                samples.append((row["samplename"], row["class"], row["primary_label"]))
+                displayed_classes.add(row["class"])
+
+            if len(samples) >= max_samples:
+                break
 
     if samples:
         plt.figure(figsize=(16, 12))
+
         for i, (samplename, class_name, species) in enumerate(samples):
             plt.subplot(2, 2, i + 1)
             plt.imshow(
