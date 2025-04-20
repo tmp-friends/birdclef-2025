@@ -63,12 +63,17 @@ class InferConfig:
     seed: int
     device: str
     spectrogram_npy_path: str
+    num_folds: int
+    folds: list[int]
+    model_dir: str
     fs: int
     window_size: int
     uses_tta: bool
     tta_count: int
-    num_folds: int
-    model_dir: str
-    valid_batch_size: int
+    num_fft: int
+    hop_length: int
+    num_mels: int
+    fmin: int
+    fmax: int
     target_w: int
     target_h: int

@@ -19,18 +19,21 @@ from models.birdclef_model import BirdCLEFModel
 def load_models(cfg: InferConfig, num_classes: int):
     models = []
     # ファイル名のパターン定義
-    # pattern = "fold(\d+)_pAUC([\d\.]+)_Loss([\d\.]+)_epoch(\d+).bin"
     pattern = "model_fold(\d+).pth"
 
     # ディレクトリ内のファイルを事前にフィルタリング
     files = [f for f in os.listdir(cfg.model_dir) if re.match(pattern, f)]
 
-    for fold in range(cfg.num_folds):
+    # 使用するフォールドを決定
+    folds_to_load = (
+        cfg.folds if hasattr(cfg, "folds") and cfg.folds else range(cfg.num_folds)
+    )
+
+    for fold in folds_to_load:
         # フォルダ内のファイルに対して正規表現マッチング
         for file in files:
             match = re.match(pattern, file)
             if match:
-                # fold_number, pAUC, loss, epoch = match.groups()
                 (fold_number,) = match.groups()
                 # フォールド番号が現在のフォールドと一致するかチェック
                 if int(fold_number) == fold:
@@ -52,7 +55,7 @@ def load_models(cfg: InferConfig, num_classes: int):
                     models.append(model)
                     break
         else:
-            print(f"No model found for fold {fold}.")
+            LOGGER.warning(f"No model found for fold {fold}.")
 
     return models
 

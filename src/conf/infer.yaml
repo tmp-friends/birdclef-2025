@@ -17,13 +17,13 @@ spectrogram_npy_path: "dummy" # 引数から指定
 
 # inference params
 num_folds: 5
+folds: [0, 1]
 model_dir: "dummy" # 引数から指定
-valid_batch_size: 256
 
 fs: 32000
 window_size: 5
 uses_tta: True
-tta_count: 5
+tta_count: 3
 # Mel spectrogram params
 num_fft: 1024
 hop_length: 512
