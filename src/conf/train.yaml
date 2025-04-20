@@ -33,3 +33,7 @@ target_w: 256
 target_h: 256
 mixup_alpha: 0.5
 aug_prob: 0.5
+
+# model
+drop_rate: 0.2
+drop_path_rate: 0.2

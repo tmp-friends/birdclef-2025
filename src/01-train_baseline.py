@@ -292,7 +292,13 @@ def run_training(
             collate_fn=collate_fn,
         )
 
-        model = BirdCLEFModel(cfg=cfg, num_classes=len(taxonomy_df)).to(cfg.device)
+        model = BirdCLEFModel(
+            cfg=cfg,
+            num_classes=len(taxonomy_df),
+            is_pretrained=True,
+            drop_rate=cfg.drop_rate,
+            drop_path_rate=cfg.drop_path_rate,
+        ).to(cfg.device)
         optimizer = get_optimizer(cfg, model)
         criterion = get_criterion(cfg)
 

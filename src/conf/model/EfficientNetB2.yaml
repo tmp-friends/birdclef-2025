@@ -1,0 +1,3 @@
+name: "efficientnet_b2"
+params:
+  in_channels: 1

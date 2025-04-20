@@ -54,6 +54,8 @@ class TrainConfig:
     target_h: int
     mixup_alpha: float
     aug_prob: float
+    drop_rate: float
+    drop_path_rate: float
 
 
 @dataclass
