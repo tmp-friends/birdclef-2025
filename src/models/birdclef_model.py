@@ -10,17 +10,24 @@ from conf.type import TrainConfig
 
 
 class BirdCLEFModel(nn.Module):
-    def __init__(self, cfg: TrainConfig, num_classes: int):
+    def __init__(
+        self,
+        cfg: TrainConfig,
+        num_classes: int,
+        is_pretrained: bool = False,
+        drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+    ):
         super().__init__()
 
         self.cfg = cfg
 
         self.backbone = timm.create_model(
             model_name=cfg.model.name,
-            pretrained=cfg.model.params.pretrained,
+            pretrained=is_pretrained,
             in_chans=cfg.model.params.in_channels,
-            drop_rate=cfg.model.params.drop_rate,
-            drop_path_rate=cfg.model.params.drop_path_rate,
+            drop_rate=drop_rate,
+            drop_path_rate=drop_path_rate,
         )
 
         if "efficientnet" in cfg.model.name:
@@ -37,7 +44,7 @@ class BirdCLEFModel(nn.Module):
         self.feat_dim = backbone_out
         self.classifier = nn.Linear(backbone_out, num_classes)
 
-        self.mixup_enabled = self.cfg.mixup_alpha > 0
+        self.mixup_enabled = getattr(self.cfg, "mixup_alpha", 0) > 0
 
     def forward(self, x, targets=None):
         if self.training and self.mixup_enabled and targets is not None:

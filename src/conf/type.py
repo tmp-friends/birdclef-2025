@@ -60,6 +60,15 @@ class TrainConfig:
 class InferConfig:
     dir: DirConfig
     model: ModelConfig
+    seed: int
+    device: str
+    spectrogram_npy_path: str
+    fs: int
+    window_size: int
+    uses_tta: bool
+    tta_count: int
     num_folds: int
     model_dir: str
     valid_batch_size: int
+    target_w: int
+    target_h: int

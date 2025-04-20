@@ -8,9 +8,29 @@ hydra:
 
 defaults:
   - _self_
-  - dir: dir
-  - model: Hoge
+  - dir: local
+  - model: EfficientNetB0
 
-n_folds: 5
+seed: 42
+device: "cpu" # code competition & GPU is disabled
+spectrogram_npy_path: "dummy" # 引数から指定
+
+# inference params
+num_folds: 5
 model_dir: "dummy" # 引数から指定
 valid_batch_size: 256
+
+fs: 32000
+window_size: 5
+uses_tta: True
+tta_count: 5
+# Mel spectrogram params
+num_fft: 1024
+hop_length: 512
+num_mels: 128
+fmin: 50
+fmax: 14000
+# transform
+target_w: 256
+target_h: 256
+
