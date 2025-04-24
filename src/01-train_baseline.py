@@ -15,6 +15,7 @@ import torch
 from torch import nn, optim
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
+from schedulefree import RAdamScheduleFree
 
 from utils.utils import set_seed
 from conf.type import TrainConfig
@@ -58,6 +59,8 @@ def get_optimizer(cfg: TrainConfig, model):
         optimizer = optim.SGD(
             model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.weight_decay
         )
+    elif cfg.optimizer == "RAdamScheduleFree":
+        optimizer = RAdamScheduleFree(model.parameters(), lr=cfg.lr, betas=(0.9, 0.999))
     else:
         raise NotImplementedError(f"Optimizer {cfg.optimizer} not implemented")
 
@@ -101,6 +104,8 @@ def get_criterion(cfg: TrainConfig):
 
 def train_one_epoch(model, loader, optimizer, criterion, device, scheduler=None):
     model.train()
+    if isinstance(optimizer, RAdamScheduleFree):
+        optimizer.train()
     losses = []
     all_targets = []
     all_outputs = []
@@ -169,8 +174,10 @@ def train_one_epoch(model, loader, optimizer, criterion, device, scheduler=None)
     return avg_loss, auc
 
 
-def validate(model, loader, criterion, device):
+def validate(model, loader, optimizer, criterion, device):
     model.eval()
+    if isinstance(optimizer, RAdamScheduleFree):
+        optimizer.eval()
     losses = []
     all_targets = []
     all_outputs = []
@@ -328,7 +335,9 @@ def run_training(
                 scheduler if isinstance(scheduler, lr_scheduler.OneCycleLR) else None,
             )
 
-            valid_loss, valid_auc = validate(model, valid_loader, criterion, cfg.device)
+            valid_loss, valid_auc = validate(
+                model, valid_loader, optimizer, criterion, cfg.device
+            )
 
             if scheduler is not None and not isinstance(
                 scheduler, lr_scheduler.OneCycleLR
