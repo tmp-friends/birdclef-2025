@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 import re
+from typing import Sequence, Union
 
 import hydra
 
@@ -42,7 +43,9 @@ def load_models(cfg: InferConfig, num_classes: int):
                     model_path = os.path.join(cfg.model_dir, file)
                     model = BirdCLEFModel(cfg=cfg, num_classes=num_classes)
                     # Load the checkpoint
-                    checkpoint = torch.load(model_path, map_location=cfg.device)
+                    checkpoint = torch.load(
+                        model_path, map_location=cfg.device, weights_only=False
+                    )
 
                     # Extract only the model's state_dict
                     if "model_state_dict" in checkpoint:
@@ -154,7 +157,6 @@ def apply_tta(mel_spec, tta_ix):
             - 0: 変更なし
             - 1: 水平方向の反転
             - 2: 垂直方向の反転
-
     Returns:
         np.ndarray: Augmentation が適用されたメルスペクトログラム。
     """
@@ -267,7 +269,9 @@ def run_inference(cfg: InferConfig, models):
     return all_row_ids, all_preds
 
 
-def create_submission(cfg: InferConfig, all_row_ids, all_preds, species_ids):
+def create_submission(
+    cfg: InferConfig, all_row_ids, all_preds, species_ids
+) -> pd.DataFrame:
     """Create submission file in the *wide* format (one row per row_id,
     one column per species) identical to the sample submission."""
 
@@ -290,9 +294,57 @@ def create_submission(cfg: InferConfig, all_row_ids, all_preds, species_ids):
     # exact column order
     submission_df = submission_df[sample_sub.columns]
 
-    # ── save ───────────────────────────────────────────────────────────────
     submission_df = submission_df.reset_index()
-    submission_df.to_csv("submission.csv", index=False)
+
+    return submission_df
+
+
+def apply_time_smoothing(
+    submission_df: pd.DataFrame, weights: dict | None = None
+) -> pd.DataFrame:
+    """
+    Apply time smoothing to the predictions in a submission file.
+    ref: https://www.kaggle.com/code/salmanahmedtamu/labels-tta-efficientnet-b0-pytorch-inference/notebook
+
+    Args:
+        submission_path (str): Path to the input submission CSV file.
+        output_path (str): Path to save the smoothed submission CSV file.
+    Returns:
+        None
+    """
+    if weights is None:
+        weights = {"center": 0.6, "prev": 0.2, "next": 0.2}
+
+    cols = submission_df.columns[1:]  # Prediction columns
+    groups = (
+        submission_df["row_id"].astype(str).str.rsplit("_", n=1).str[0].values
+    )  # Extract group IDs
+
+    # Apply smoothing for each group
+    for group in np.unique(groups):
+        sub_group = submission_df[group == groups]
+        predictions = sub_group[cols].values
+        new_predictions = predictions.copy()
+
+        # Apply smoothing
+        for i in range(1, predictions.shape[0] - 1):
+            new_predictions[i] = (
+                (predictions[i - 1] * weights["prev"])
+                + (predictions[i] * weights["center"])
+                + (predictions[i + 1] * weights["next"])
+            )
+        new_predictions[0] = (
+            predictions[0] * (weights["center"] + weights["prev"])
+        ) + (predictions[1] * weights["next"])
+        new_predictions[-1] = (
+            predictions[-1] * (weights["center"] + weights["next"])
+        ) + (predictions[-2] * weights["prev"])
+
+        # Update the smoothed predictions
+        sub_group[cols] = new_predictions
+        submission_df[group == groups] = sub_group
+
+    return submission_df
 
 
 @hydra.main(config_path="conf", config_name="infer", version_base="1.1")
@@ -318,12 +370,17 @@ def main(cfg: InferConfig):
     # infer
     all_row_ids, all_preds = run_inference(cfg=cfg, models=models)
 
-    create_submission(
+    submission_df = create_submission(
         cfg=cfg,
         all_row_ids=all_row_ids,
         all_preds=all_preds,
         species_ids=species_ids,
     )
+
+    submission_df = apply_time_smoothing(submission_df=submission_df)
+    submission_df.to_csv("submission.csv", index=False)
+
+    LOGGER.info("Inference completed successfully!")
 
 
 if __name__ == "__main__":
