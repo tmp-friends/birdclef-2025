@@ -37,4 +37,5 @@ dependencies = [
     "librosa>=0.11.0",
     "protobuf==3.20.3",
     "schedulefree>=1.4",
+    "seaborn>=0.13.2",
 ]
