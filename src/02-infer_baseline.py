@@ -352,14 +352,6 @@ def main(cfg: InferConfig):
 
     # Load data
     taxonomy_df = pd.read_csv(cfg.dir.taxonomy_csv)
-    spectrograms = None
-    try:
-        spectrograms = np.load(cfg.spectrogram_npy_path, allow_pickle=True).item()
-        LOGGER.info(f"Loaded {len(spectrograms)} pre-computed mel spectrograms")
-    except Exception as e:
-        LOGGER.info(f"Error loading pre-computed spectrograms: {e}")
-        LOGGER.info("Will generate spectrograms on-the-fly instead.")
-
     num_classes = len(taxonomy_df)
     species_ids = taxonomy_df["primary_label"].tolist()
 

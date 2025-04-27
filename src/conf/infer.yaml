@@ -14,7 +14,6 @@ defaults:
 
 seed: 42
 device: "cpu" # code competition & GPU is disabled
-spectrogram_npy_path: "dummy" # 引数から指定
 
 # inference params
 num_folds: 5

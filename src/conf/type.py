@@ -69,7 +69,6 @@ class InferConfig:
     model: ModelConfig
     seed: int
     device: str
-    spectrogram_npy_path: str
     num_folds: int
     folds: list[int]
     model_dir: str
