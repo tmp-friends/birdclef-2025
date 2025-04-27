@@ -105,9 +105,9 @@ def audio2melspec(cfg: InferConfig, audio_data: np.ndarray):
         cfg (InferConfig): メルスペクトログラム生成のためのパラメータを含む
             設定オブジェクト。以下を含みます:
             - fs (int): オーディオのサンプリングレート。
-            - num_fft (int): FFTのコンポーネント数。
+            - n_fft (int): FFTのコンポーネント数。
             - hop_length (int): フレーム間のサンプル数。
-            - num_mels (int): 生成するメルバンドの数。
+            - n_mels (int): 生成するメルバンドの数。
             - fmin (float): 最小周波数 (Hz)。
             - fmax (float): 最大周波数 (Hz)。
         audio_data (np.ndarray): 生のオーディオ信号を含む1次元のNumPy配列。
@@ -129,9 +129,9 @@ def audio2melspec(cfg: InferConfig, audio_data: np.ndarray):
     mel_spec = librosa.feature.melspectrogram(
         y=audio_data,
         sr=cfg.spec.fs,
-        n_fft=cfg.spec.num_fft,
+        n_fft=cfg.spec.n_fft,
         hop_length=cfg.spec.hop_length,
-        n_mels=cfg.spec.num_mels,
+        n_mels=cfg.spec.n_mels,
         fmin=cfg.spec.fmin,
         fmax=cfg.spec.fmax,
         power=2.0,
