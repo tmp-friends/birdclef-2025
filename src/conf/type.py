@@ -21,8 +21,7 @@ class SpecConfig:
     num_mels: int
     fmin: int
     fmax: int
-    target_w: int
-    target_h: int
+    target_shape: int
 
 
 @dataclass

@@ -84,10 +84,10 @@ def process_audio_segment(cfg: InferConfig, audio_data: np.ndarray):
     mel_spec = audio2melspec(cfg=cfg, audio_data=audio_data)
 
     # Resize if needed
-    if mel_spec.shape != (cfg.spec.target_w, cfg.spec.target_h):
+    if mel_spec.shape != cfg.spec.target_shape:
         mel_spec = cv2.resize(
             mel_spec,
-            (cfg.spec.target_w, cfg.spec.target_h),
+            cfg.spec.target_shape,
             interpolation=cv2.INTER_LINEAR,
         )
 

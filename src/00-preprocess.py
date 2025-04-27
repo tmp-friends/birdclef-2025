@@ -26,9 +26,9 @@ def audio2melspec(cfg, audio_data):
     mel_spec = librosa.feature.melspectrogram(
         y=audio_data,
         sr=cfg.spec.fs,
-        n_fft=cfg.spec.num_fft,
+        n_fft=cfg.spec.n_fft,
         hop_length=cfg.spec.hop_length,
-        n_mels=cfg.spec.num_mels,
+        n_mels=cfg.spec.n_mels,
         fmin=cfg.spec.fmin,
         fmax=cfg.spec.fmax,
         power=2.0,
@@ -69,10 +69,10 @@ def process_audio(cfg, row, target_samples):
 
         mel_spec = audio2melspec(cfg=cfg, audio_data=center_audio)
 
-        if mel_spec.shape != (cfg.spec.target_w, cfg.spec.target_h):
+        if mel_spec.shape != cfg.spec.target_shape:
             mel_spec = cv2.resize(
                 mel_spec,
-                (cfg.spec.target_w, cfg.spec.target_h),
+                cfg.spec.target_shape,
                 interpolation=cv2.INTER_LINEAR,
             )
 
@@ -92,7 +92,7 @@ def main(cfg: PreprocessConfig):
     """
     # Log the current configuration for the sweep
     LOGGER.info(
-        f"Running with configuration: n_mels={cfg.spec.num_mels}, hop_length={cfg.spec.hop_length}, fmin={cfg.spec.fmin}, fmax={cfg.spec.fmax}"
+        f"Running with configuration: n_mels={cfg.spec.n_mels}, hop_length={cfg.spec.hop_length}, fmin={cfg.spec.fmin}, fmax={cfg.spec.fmax}"
     )
 
     # Load data
