@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any
 
 
 @dataclass
@@ -12,6 +12,20 @@ class DirConfig:
 
 
 @dataclass
+class SpecConfig:
+    name: str
+    fs: int
+    window_size: int
+    num_fft: int
+    hop_length: int
+    num_mels: int
+    fmin: int
+    fmax: int
+    target_w: int
+    target_h: int
+
+
+@dataclass
 class ModelConfig:
     name: str
     params: dict[str, Any]
@@ -20,20 +34,13 @@ class ModelConfig:
 @dataclass
 class PreprocessConfig:
     dir: DirConfig
-    fs: int
-    num_fft: int
-    hop_length: int
-    num_mels: int
-    fmin: int
-    fmax: int
-    target_duration: float
-    target_w: int
-    target_h: int
+    spec: SpecConfig
 
 
 @dataclass
 class TrainConfig:
     dir: DirConfig
+    spec: SpecConfig
     model: ModelConfig
     seed: int
     device: str
@@ -50,8 +57,6 @@ class TrainConfig:
     T_max: int
     min_lr: float
     criterion: str
-    target_w: int
-    target_h: int
     mixup_alpha: float
     aug_prob: float
     drop_rate: float
@@ -61,6 +66,7 @@ class TrainConfig:
 @dataclass
 class InferConfig:
     dir: DirConfig
+    spec: SpecConfig
     model: ModelConfig
     seed: int
     device: str
@@ -68,14 +74,5 @@ class InferConfig:
     num_folds: int
     folds: list[int]
     model_dir: str
-    fs: int
-    window_size: int
     uses_tta: bool
     tta_count: int
-    num_fft: int
-    hop_length: int
-    num_mels: int
-    fmin: int
-    fmax: int
-    target_w: int
-    target_h: int

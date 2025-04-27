@@ -9,6 +9,7 @@ hydra:
 defaults:
   - _self_
   - dir: local
+  - spec: MelSpectrogram
   - model: EfficientNetB0
 
 seed: 42
@@ -20,16 +21,5 @@ num_folds: 5
 folds: [0, 1]
 model_dir: "dummy" # 引数から指定
 
-fs: 32000
-window_size: 5
 uses_tta: True
 tta_count: 3
-# Mel spectrogram params
-num_fft: 1024
-hop_length: 512
-num_mels: 128
-fmin: 50
-fmax: 14000
-# transform
-target_w: 256
-target_h: 256

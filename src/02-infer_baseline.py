@@ -2,7 +2,6 @@ import logging
 import os
 from pathlib import Path
 import re
-from typing import Sequence, Union
 
 import hydra
 
@@ -75,20 +74,20 @@ def process_audio_segment(cfg: InferConfig, audio_data: np.ndarray):
     Returns:
         np.ndarray: メルスペクトログラムを表す2次元のNumPy配列。データ型はfloat32。
     """
-    if len(audio_data) < cfg.fs * cfg.window_size:
+    if len(audio_data) < cfg.spec.fs * cfg.spec.window_size:
         audio_data = np.pad(
             audio_data,
-            (0, cfg.fs * cfg.window_size - len(audio_data)),
+            (0, cfg.spec.fs * cfg.spec.window_size - len(audio_data)),
             mode="constant",
         )
 
     mel_spec = audio2melspec(cfg=cfg, audio_data=audio_data)
 
     # Resize if needed
-    if mel_spec.shape != (cfg.target_w, cfg.target_h):
+    if mel_spec.shape != (cfg.spec.target_w, cfg.spec.target_h):
         mel_spec = cv2.resize(
             mel_spec,
-            (cfg.target_w, cfg.target_h),
+            (cfg.spec.target_w, cfg.spec.target_h),
             interpolation=cv2.INTER_LINEAR,
         )
 
@@ -129,12 +128,12 @@ def audio2melspec(cfg: InferConfig, audio_data: np.ndarray):
 
     mel_spec = librosa.feature.melspectrogram(
         y=audio_data,
-        sr=cfg.fs,
-        n_fft=cfg.num_fft,
-        hop_length=cfg.hop_length,
-        n_mels=cfg.num_mels,
-        fmin=cfg.fmin,
-        fmax=cfg.fmax,
+        sr=cfg.spec.fs,
+        n_fft=cfg.spec.num_fft,
+        hop_length=cfg.spec.hop_length,
+        n_mels=cfg.spec.num_mels,
+        fmin=cfg.spec.fmin,
+        fmax=cfg.spec.fmax,
         power=2.0,
     )
 
@@ -225,9 +224,9 @@ def predict_on_spectrogram(
 
     try:
         LOGGER.info(f"Processing {soundscape_id}")
-        audio, _ = librosa.load(audio_path, sr=cfg.fs)
+        audio, _ = librosa.load(audio_path, sr=cfg.spec.fs)
 
-        seg_len = cfg.fs * cfg.window_size
+        seg_len = cfg.spec.fs * cfg.spec.window_size
         total_segs = int(np.ceil(len(audio) / seg_len))
 
         for seg_ix in range(total_segs):
@@ -238,7 +237,7 @@ def predict_on_spectrogram(
             pred = _predict_for_segment(cfg, segment, models)
 
             # メタ情報
-            end_sec = (seg_ix + 1) * cfg.window_size
+            end_sec = (seg_ix + 1) * cfg.spec.window_size
             row_ids.append(f"{soundscape_id}_{end_sec}")
             preds.append(pred)
 

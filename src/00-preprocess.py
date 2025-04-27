@@ -25,12 +25,12 @@ def audio2melspec(cfg, audio_data):
 
     mel_spec = librosa.feature.melspectrogram(
         y=audio_data,
-        sr=cfg.fs,
-        n_fft=cfg.num_fft,
-        hop_length=cfg.hop_length,
-        n_mels=cfg.num_mels,
-        fmin=cfg.fmin,
-        fmax=cfg.fmax,
+        sr=cfg.spec.fs,
+        n_fft=cfg.spec.num_fft,
+        hop_length=cfg.spec.hop_length,
+        n_mels=cfg.spec.num_mels,
+        fmin=cfg.spec.fmin,
+        fmax=cfg.spec.fmax,
         power=2.0,
     )
 
@@ -47,7 +47,7 @@ def process_audio(cfg, row, target_samples):
 
     try:
         # サンプリングレートを指定して、音声データを読み込む
-        audio_data, _ = librosa.load(row["filepath"], sr=cfg.fs)
+        audio_data, _ = librosa.load(row["filepath"], sr=cfg.spec.fs)
 
         # 音声が短い場合のリピート補正
         if len(audio_data) < target_samples:
@@ -69,10 +69,10 @@ def process_audio(cfg, row, target_samples):
 
         mel_spec = audio2melspec(cfg=cfg, audio_data=center_audio)
 
-        if mel_spec.shape != (cfg.target_w, cfg.target_h):
+        if mel_spec.shape != (cfg.spec.target_w, cfg.spec.target_h):
             mel_spec = cv2.resize(
                 mel_spec,
-                (cfg.target_w, cfg.target_h),
+                (cfg.spec.target_w, cfg.spec.target_h),
                 interpolation=cv2.INTER_LINEAR,
             )
 
@@ -90,6 +90,11 @@ def main(cfg: PreprocessConfig):
 
     ref: https://www.kaggle.com/code/kadircandrisolu/transforming-audio-to-mel-spec-birdclef-25
     """
+    # Log the current configuration for the sweep
+    LOGGER.info(
+        f"Running with configuration: n_mels={cfg.spec.num_mels}, hop_length={cfg.spec.hop_length}, fmin={cfg.spec.fmin}, fmax={cfg.spec.fmax}"
+    )
+
     # Load data
     train_df = pd.read_csv(cfg.dir.train_csv)
     taxonomy_df = pd.read_csv(cfg.dir.taxonomy_csv)
@@ -121,7 +126,7 @@ def main(cfg: PreprocessConfig):
     LOGGER.info(f"Samples by class: {working_df['class'].value_counts()}")
 
     # 目標とする録音時間にサンプリングレートを乗算することで必要なサンプル数を算出
-    target_samples = int(cfg.target_duration * cfg.fs)
+    target_samples = int(cfg.spec.window_size * cfg.spec.fs)
 
     # 並列処理で実行
     # librosa の I/O や Numpy の処理は GIL の影響を受けにくいので恩恵がある

@@ -52,7 +52,9 @@ class BirdCLEFDatasetFromNPY(Dataset):
         spec = self.spectrograms[samplename]
 
         if spec is None:
-            spec = np.zeros((self.cfg.target_w, self.cfg.target_h), dtype=np.float32)
+            spec = np.zeros(
+                (self.cfg.spec.target_w, self.cfg.spec.target_h), dtype=np.float32
+            )
             if self.mode == "train":  # 学習時のみ警告を出す
                 print(
                     f"Warning: Spectrogram for {samplename} not found and could not be generated"

@@ -9,16 +9,4 @@ hydra:
 defaults:
   - _self_
   - dir: local
-
-fs: 32000
-
-# Mel spectrogram params
-num_fft: 1024
-hop_length: 512
-num_mels: 128
-fmin: 50
-fmax: 14000
-
-target_duration: 5.0
-target_w: 256
-target_h: 256
+  - spec: MelSpectrogram

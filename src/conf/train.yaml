@@ -9,6 +9,7 @@ hydra:
 defaults:
   - _self_
   - dir: local
+  - spec: MelSpectrogram
   - model: EfficientNetB0
 
 seed: 42
@@ -28,9 +29,7 @@ T_max: 10
 min_lr: 1e-6
 criterion: "BCEWithLogitsLoss"
 
-# transform
-target_w: 256
-target_h: 256
+# augmentation
 mixup_alpha: 0.5
 aug_prob: 0.5
 
