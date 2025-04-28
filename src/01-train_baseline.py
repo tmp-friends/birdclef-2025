@@ -322,6 +322,7 @@ def run_training(
 
         best_auc = 0
         best_epoch = 0
+        early_stopping_cnt = 0
 
         for epoch in range(cfg.num_epochs):
             LOGGER.info(f"\nEpoch {epoch + 1}/{cfg.num_epochs}")
@@ -369,6 +370,15 @@ def run_training(
                     },
                     f"model_fold{fold}.pth",
                 )
+
+                early_stopping_cnt = 0
+            else:
+                early_stopping_cnt += 1
+                if early_stopping_cnt >= cfg.early_stopping:
+                    LOGGER.info(
+                        f"Early stopping at epoch {epoch + 1}, no improvement in last {cfg.early_stopping} epochs"
+                    )
+                    break
 
         best_scores.append(best_auc)
         LOGGER.info(f"\nBest AUC for fold {fold}: {best_auc:.4f} at epoch {best_epoch}")

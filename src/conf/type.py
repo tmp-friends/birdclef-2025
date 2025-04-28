@@ -56,6 +56,7 @@ class TrainConfig:
     T_max: int
     min_lr: float
     criterion: str
+    early_stopping: int
     mixup_alpha: float
     aug_prob: float
     drop_rate: float
