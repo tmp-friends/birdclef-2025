@@ -15,39 +15,18 @@ import matplotlib.pyplot as plt
 
 from utils.utils import set_seed
 from conf.type import PreprocessConfig
+from utils.audio2melspec import audio2melspec
 
 
-def audio2melspec(cfg, audio_data):
-    """Convert audio data to mel spectrogram"""
-    if np.isnan(audio_data).any():
-        mean_signal = np.nanmean(audio_data)
-        audio_data = np.nan_to_num(audio_data, nan=mean_signal)
-
-    mel_spec = librosa.feature.melspectrogram(
-        y=audio_data,
-        sr=cfg.spec.fs,
-        n_fft=cfg.spec.n_fft,
-        hop_length=cfg.spec.hop_length,
-        n_mels=cfg.spec.n_mels,
-        fmin=cfg.spec.fmin,
-        fmax=cfg.spec.fmax,
-        power=2.0,
-    )
-
-    mel_spec_db = librosa.power_to_db(mel_spec, ref=np.max)
-    mel_spec_norm = (mel_spec_db - mel_spec_db.min()) / (
-        mel_spec_db.max() - mel_spec_db.min() + 1e-8
-    )
-
-    return mel_spec_norm
-
-
-def process_audio(cfg, row, target_samples):
+def process_audio(cfg, row):
     """Process a single audio file to get the mel spectrogram"""
 
     try:
         # サンプリングレートを指定して、音声データを読み込む
         audio_data, _ = librosa.load(row["filepath"], sr=cfg.spec.fs)
+
+        # 目標とする録音時間にサンプリングレートを乗算することで必要なサンプル数を算出
+        target_samples = int(cfg.spec.window_size * cfg.spec.fs)
 
         # 音声が短い場合のリピート補正
         if len(audio_data) < target_samples:
@@ -125,9 +104,6 @@ def main(cfg: PreprocessConfig):
     )
     LOGGER.info(f"Samples by class: {working_df['class'].value_counts()}")
 
-    # 目標とする録音時間にサンプリングレートを乗算することで必要なサンプル数を算出
-    target_samples = int(cfg.spec.window_size * cfg.spec.fs)
-
     # 並列処理で実行
     # librosa の I/O や Numpy の処理は GIL の影響を受けにくいので恩恵がある
     LOGGER.info("Starting audio processing...")
@@ -136,8 +112,7 @@ def main(cfg: PreprocessConfig):
     all_bird_data = {}
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [
-            executor.submit(process_audio, cfg, row, target_samples)
-            for _, row in working_df.iterrows()
+            executor.submit(process_audio, cfg, row) for _, row in working_df.iterrows()
         ]
 
         # 並列タスクの完了を待ち、結果を収集
