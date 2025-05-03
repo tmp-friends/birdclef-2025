@@ -27,7 +27,7 @@ lr: 5e-4
 weight_decay: 1e-5
 T_max: 10
 min_lr: 1e-6
-criterion: "BCEWithLogitsLoss"
+criterion: "FocalLossBCE"
 early_stopping: 3
 
 # augmentation

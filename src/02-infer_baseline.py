@@ -14,7 +14,7 @@ import librosa
 from utils.utils import set_seed
 from conf.type import InferConfig
 from utils.audio2melspec import audio2melspec
-from models.birdclef_model import BirdCLEFModel
+from modules.birdclef_model import BirdCLEFModel
 
 
 def load_models(cfg: InferConfig, num_classes: int):
@@ -26,9 +26,7 @@ def load_models(cfg: InferConfig, num_classes: int):
     files = [f for f in os.listdir(cfg.model_dir) if re.match(pattern, f)]
 
     # 使用するフォールドを決定
-    folds_to_load = (
-        cfg.folds if hasattr(cfg, "folds") and cfg.folds else range(cfg.num_folds)
-    )
+    folds_to_load = cfg.folds if hasattr(cfg, "folds") and cfg.folds else range(cfg.num_folds)
 
     for fold in folds_to_load:
         # フォルダ内のファイルに対して正規表現マッチング
@@ -43,9 +41,7 @@ def load_models(cfg: InferConfig, num_classes: int):
                     model_path = os.path.join(cfg.model_dir, file)
                     model = BirdCLEFModel(cfg=cfg, num_classes=num_classes)
                     # Load the checkpoint
-                    checkpoint = torch.load(
-                        model_path, map_location=cfg.device, weights_only=False
-                    )
+                    checkpoint = torch.load(model_path, map_location=cfg.device, weights_only=False)
 
                     # Extract only the model's state_dict
                     if "model_state_dict" in checkpoint:
@@ -150,10 +146,7 @@ def _predict_for_segment(cfg, segment_audio: np.ndarray, models) -> np.ndarray:
         mel = apply_tta(mel, tta_ix)
 
         mel_tensor = (
-            torch.tensor(mel, dtype=torch.float32)
-            .unsqueeze(0)  # (1, H, W)
-            .unsqueeze(0)  # (1, 1, H, W)
-            .to(cfg.device)
+            torch.tensor(mel, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(cfg.device)  # (1, H, W)  # (1, 1, H, W)
         )
 
         pred = _forward(models, mel_tensor)
@@ -162,9 +155,7 @@ def _predict_for_segment(cfg, segment_audio: np.ndarray, models) -> np.ndarray:
     return np.mean(segment_preds, axis=0)
 
 
-def predict_on_spectrogram(
-    cfg, audio_path: str, models: list
-) -> tuple[list[str], list[np.ndarray]]:
+def predict_on_spectrogram(cfg, audio_path: str, models: list) -> tuple[list[str], list[np.ndarray]]:
     """
     1 つのサウンドスケープ (.ogg) に対して推論を実行し、
     セグメント毎の row_id と予測確率を返す。
@@ -218,9 +209,7 @@ def run_inference(cfg: InferConfig, models):
     return all_row_ids, all_preds
 
 
-def create_submission(
-    cfg: InferConfig, all_row_ids, all_preds, species_ids
-) -> pd.DataFrame:
+def create_submission(cfg: InferConfig, all_row_ids, all_preds, species_ids) -> pd.DataFrame:
     """Create submission file in the *wide* format (one row per row_id,
     one column per species) identical to the sample submission."""
 
@@ -234,9 +223,7 @@ def create_submission(
 
     missing_cols = set(sample_sub.columns) - set(submission_df.columns)
     if missing_cols:
-        LOGGER.warning(
-            f"Missing {len(missing_cols)} species columns - filling with 0.0"
-        )
+        LOGGER.warning(f"Missing {len(missing_cols)} species columns - filling with 0.0")
         for col in missing_cols:
             submission_df[col] = 0.0
 
@@ -248,9 +235,7 @@ def create_submission(
     return submission_df
 
 
-def apply_time_smoothing(
-    submission_df: pd.DataFrame, weights: dict | None = None
-) -> pd.DataFrame:
+def apply_time_smoothing(submission_df: pd.DataFrame, weights: dict | None = None) -> pd.DataFrame:
     """
     Apply time smoothing to the predictions in a submission file.
     ref: https://www.kaggle.com/code/salmanahmedtamu/labels-tta-efficientnet-b0-pytorch-inference/notebook
@@ -265,9 +250,7 @@ def apply_time_smoothing(
         weights = {"center": 0.6, "prev": 0.2, "next": 0.2}
 
     cols = submission_df.columns[1:]  # Prediction columns
-    groups = (
-        submission_df["row_id"].astype(str).str.rsplit("_", n=1).str[0].values
-    )  # Extract group IDs
+    groups = submission_df["row_id"].astype(str).str.rsplit("_", n=1).str[0].values  # Extract group IDs
 
     # Apply smoothing for each group
     for group in np.unique(groups):
@@ -282,12 +265,12 @@ def apply_time_smoothing(
                 + (predictions[i] * weights["center"])
                 + (predictions[i + 1] * weights["next"])
             )
-        new_predictions[0] = (
-            predictions[0] * (weights["center"] + weights["prev"])
-        ) + (predictions[1] * weights["next"])
-        new_predictions[-1] = (
-            predictions[-1] * (weights["center"] + weights["next"])
-        ) + (predictions[-2] * weights["prev"])
+        new_predictions[0] = (predictions[0] * (weights["center"] + weights["prev"])) + (
+            predictions[1] * weights["next"]
+        )
+        new_predictions[-1] = (predictions[-1] * (weights["center"] + weights["next"])) + (
+            predictions[-2] * weights["prev"]
+        )
 
         # Update the smoothed predictions
         sub_group[cols] = new_predictions
@@ -326,9 +309,7 @@ def main(cfg: InferConfig):
 
 if __name__ == "__main__":
     # Logger
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(levelname)s:%(name)s - %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s:%(name)s - %(message)s")
     LOGGER = logging.getLogger(Path(__file__).name)
 
     # For descriptive error messages
