@@ -126,15 +126,6 @@ def _forward(models: list[torch.nn.Module], x: torch.Tensor) -> torch.Tensor:
         return torch.mean(torch.stack(preds, dim=0), dim=0)
 
 
-def _segment_audio(audio: np.ndarray, start: int, length: int) -> np.ndarray:
-    """指定位置のオーディオ切り出し（長さ不足時はゼロ埋め）"""
-    end = start + length
-    if end > len(audio):
-        pad = end - len(audio)
-        audio = np.pad(audio, (0, pad))
-    return audio[start:end]
-
-
 def _predict_for_segment(cfg, segment_audio: np.ndarray, models) -> np.ndarray:
     """1セグメントに対する予測（TTA を考慮）"""
     # TTA ありなら複数 mel を作り平均、無しなら 1 つ
@@ -165,17 +156,18 @@ def predict_on_spectrogram(cfg, audio_path: str, models: list) -> tuple[list[str
 
     try:
         LOGGER.info(f"Processing {soundscape_id}")
-        audio, _ = librosa.load(audio_path, sr=cfg.spec.fs)
+        audio_data, _ = librosa.load(audio_path, sr=cfg.spec.fs)
 
         seg_len = cfg.spec.fs * cfg.spec.window_size
-        total_segs = int(np.ceil(len(audio) / seg_len))
+        total_segs = int(np.ceil(len(audio_data) / seg_len))
 
         for seg_ix in range(total_segs):
             start_sample = seg_ix * seg_len
-            segment = _segment_audio(audio, start_sample, seg_len)
+            end_sample = start_sample + seg_len
+            segment_audio = audio_data[start_sample:end_sample]
 
             # 推論
-            pred = _predict_for_segment(cfg, segment, models)
+            pred = _predict_for_segment(cfg, segment_audio, models)
 
             # メタ情報
             end_sec = (seg_ix + 1) * cfg.spec.window_size
