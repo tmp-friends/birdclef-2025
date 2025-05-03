@@ -13,7 +13,7 @@ import librosa
 
 from utils.utils import set_seed
 from conf.type import InferConfig
-from utils.audio2melspec import audio2melspec
+from utils.audio2melspec import process_audio_segment
 from modules.birdclef_model import BirdCLEFModel
 
 
@@ -59,38 +59,6 @@ def load_models(cfg: InferConfig, num_classes: int):
     return models
 
 
-def process_audio_segment(cfg: InferConfig, audio_data: np.ndarray):
-    """
-    単一のオーディオセグメントを処理してメルスペクトログラムを生成します。
-
-    Args:
-        cfg (InferConfig): 推論設定を含む構成オブジェクト。サンプリング周波数 (fs)、ウィンドウサイズ (window_size)、および
-                           出力スペクトログラムの目標幅 (target_w) と高さ (target_h) を含む。
-        audio_data (np.ndarray): 処理対象のオーディオデータ。1次元のNumPy配列。
-
-    Returns:
-        np.ndarray: メルスペクトログラムを表す2次元のNumPy配列。データ型はfloat32。
-    """
-    if len(audio_data) < cfg.spec.fs * cfg.spec.window_size:
-        audio_data = np.pad(
-            audio_data,
-            (0, cfg.spec.fs * cfg.spec.window_size - len(audio_data)),
-            mode="constant",
-        )
-
-    mel_spec = audio2melspec(cfg=cfg, audio_data=audio_data)
-
-    # Resize if needed
-    if mel_spec.shape != cfg.spec.target_shape:
-        mel_spec = cv2.resize(
-            mel_spec,
-            cfg.spec.target_shape,
-            interpolation=cv2.INTER_LINEAR,
-        )
-
-    return mel_spec.astype(np.float32)
-
-
 def apply_tta(mel_spec, tta_ix):
     """
     Test Time Augmentation (TTA) をメルスペクトログラムに適用する関数。
@@ -128,16 +96,19 @@ def _forward(models: list[torch.nn.Module], x: torch.Tensor) -> torch.Tensor:
 
 def _predict_for_segment(cfg, segment_audio: np.ndarray, models) -> np.ndarray:
     """1セグメントに対する予測（TTA を考慮）"""
-    # TTA ありなら複数 mel を作り平均、無しなら 1 つ
+    # TTA ありなら複数 mel_spec を作り平均、無しなら 1 つ
     tta_indices = range(cfg.tta_count) if cfg.uses_tta else [0]
 
     segment_preds = []
     for tta_ix in tta_indices:
-        mel = process_audio_segment(cfg, segment_audio)
-        mel = apply_tta(mel, tta_ix)
+        mel_spec = process_audio_segment(cfg, segment_audio)
+        mel_spec = apply_tta(mel_spec, tta_ix)
 
         mel_tensor = (
-            torch.tensor(mel, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(cfg.device)  # (1, H, W)  # (1, 1, H, W)
+            torch.tensor(mel_spec, dtype=torch.float32)
+            .unsqueeze(0)
+            .unsqueeze(0)
+            .to(cfg.device)  # (1, H, W)  # (1, 1, H, W)
         )
 
         pred = _forward(models, mel_tensor)

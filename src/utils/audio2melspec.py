@@ -1,8 +1,43 @@
 import numpy as np
 import librosa
+import cv2
+
+from conf.type import PreprocessConfig, InferConfig
 
 
-def audio2melspec(cfg, audio_data):
+def process_audio_segment(cfg: PreprocessConfig | InferConfig, audio_data: np.ndarray):
+    """
+    単一のオーディオセグメントを処理してメルスペクトログラムを生成します。
+
+    Args:
+        cfg (InferConfig): 推論設定を含む構成オブジェクト。サンプリング周波数 (fs)、ウィンドウサイズ (window_size)、および
+                           出力スペクトログラムの目標幅 (target_w) と高さ (target_h) を含む。
+        audio_data (np.ndarray): 処理対象のオーディオデータ。1次元のNumPy配列。
+
+    Returns:
+        np.ndarray: メルスペクトログラムを表す2次元のNumPy配列。データ型はfloat32。
+    """
+    if len(audio_data) < cfg.spec.fs * cfg.spec.window_size:
+        audio_data = np.pad(
+            audio_data,
+            (0, cfg.spec.fs * cfg.spec.window_size - len(audio_data)),
+            mode="reflect",
+        )
+
+    mel_spec = _audio2melspec(cfg=cfg, audio_data=audio_data)
+
+    # Resize if needed
+    if mel_spec.shape != cfg.spec.target_shape:
+        mel_spec = cv2.resize(
+            mel_spec,
+            cfg.spec.target_shape,
+            interpolation=cv2.INTER_LINEAR,
+        )
+
+    return mel_spec.astype(np.float32)
+
+
+def _audio2melspec(cfg, audio_data):
     """
     オーディオデータを正規化されたメルスペクトログラムに変換します。
 

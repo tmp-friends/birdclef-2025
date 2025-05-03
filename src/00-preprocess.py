@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 from utils.utils import set_seed
 from conf.type import PreprocessConfig
-from utils.audio2melspec import audio2melspec
+from utils.audio2melspec import process_audio_segment
 
 
 def process_audio(cfg, row):
@@ -39,21 +39,7 @@ def process_audio(cfg, row):
         end_ix = max(len(audio_data), start_ix + target_samples)
         center_audio = audio_data[start_ix:end_ix]
 
-        if len(center_audio) < target_samples:
-            center_audio = np.pad(
-                center_audio,
-                (0, target_samples - len(center_audio)),
-                mode="reflect",
-            )
-
-        mel_spec = audio2melspec(cfg=cfg, audio_data=center_audio)
-
-        if mel_spec.shape != cfg.spec.target_shape:
-            mel_spec = cv2.resize(
-                mel_spec,
-                cfg.spec.target_shape,
-                interpolation=cv2.INTER_LINEAR,
-            )
+        mel_spec = process_audio_segment(cfg, center_audio)
 
         return row["samplename"], mel_spec.astype(np.float32)
 
