@@ -43,7 +43,7 @@ def process_audio(cfg, row):
             center_audio = np.pad(
                 center_audio,
                 (0, target_samples - len(center_audio)),
-                mode="constant",
+                mode="reflect",
             )
 
         mel_spec = audio2melspec(cfg=cfg, audio_data=center_audio)
@@ -77,9 +77,7 @@ def main(cfg: PreprocessConfig):
     # Load data
     train_df = pd.read_csv(cfg.dir.train_csv)
     taxonomy_df = pd.read_csv(cfg.dir.taxonomy_csv)
-    species_class_map = dict(
-        zip(taxonomy_df["primary_label"], taxonomy_df["class_name"])
-    )
+    species_class_map = dict(zip(taxonomy_df["primary_label"], taxonomy_df["class_name"]))
     LOGGER.info(train_df.head())
 
     # mapping 辞書の作成
@@ -91,17 +89,11 @@ def main(cfg: PreprocessConfig):
     working_df = train_df[["primary_label", "rating", "filename"]].copy()
     working_df["target"] = working_df.primary_label.map(label2id)
     working_df["filepath"] = cfg.dir.train_audio_dir + "/" + working_df.filename
-    working_df["samplename"] = working_df.filename.map(
-        lambda x: x.split("/")[0] + "-" + x.split("/")[-1].split(".")[0]
-    )
-    working_df["class"] = working_df.primary_label.map(
-        lambda x: species_class_map.get(x, "Unknown")
-    )
+    working_df["samplename"] = working_df.filename.map(lambda x: x.split("/")[0] + "-" + x.split("/")[-1].split(".")[0])
+    working_df["class"] = working_df.primary_label.map(lambda x: species_class_map.get(x, "Unknown"))
 
     total_samples = len(working_df)
-    LOGGER.info(
-        f"Total samples to process: {total_samples} out of {len(working_df)} available"
-    )
+    LOGGER.info(f"Total samples to process: {total_samples} out of {len(working_df)} available")
     LOGGER.info(f"Samples by class: {working_df['class'].value_counts()}")
 
     # 並列処理で実行
@@ -111,9 +103,7 @@ def main(cfg: PreprocessConfig):
 
     all_bird_data = {}
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [
-            executor.submit(process_audio, cfg, row) for _, row in working_df.iterrows()
-        ]
+        futures = [executor.submit(process_audio, cfg, row) for _, row in working_df.iterrows()]
 
         # 並列タスクの完了を待ち、結果を収集
         for future in concurrent.futures.as_completed(futures):
@@ -125,9 +115,7 @@ def main(cfg: PreprocessConfig):
     end_time = time.time()
 
     LOGGER.info(f"Processing completed in {end_time - start_time:.2f} seconds")
-    LOGGER.info(
-        f"Successfully processed {len(all_bird_data)} files out of {total_samples} total"
-    )
+    LOGGER.info(f"Successfully processed {len(all_bird_data)} files out of {total_samples} total")
     # npy で保存
     np.save("all_bird_data.npy", all_bird_data, allow_pickle=True)
 
@@ -153,9 +141,7 @@ def main(cfg: PreprocessConfig):
 
         for i, (samplename, class_name, species) in enumerate(samples):
             plt.subplot(2, 2, i + 1)
-            plt.imshow(
-                all_bird_data[samplename], aspect="auto", origin="lower", cmap="viridis"
-            )
+            plt.imshow(all_bird_data[samplename], aspect="auto", origin="lower", cmap="viridis")
             plt.title(f"{class_name}: {species}")
             plt.colorbar(format="%+2.0f dB")
 
@@ -166,9 +152,7 @@ def main(cfg: PreprocessConfig):
 
 if __name__ == "__main__":
     # Logger
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(levelname)s:%(name)s - %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s:%(name)s - %(message)s")
     LOGGER = logging.getLogger(Path(__file__).name)
 
     # For descriptive error messages

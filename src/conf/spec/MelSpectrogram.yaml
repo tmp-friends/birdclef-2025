@@ -2,7 +2,7 @@
 name: "MelSpectrogram"
 fs: 32000
 window_size: 5
-n_fft: 1024
+n_fft: 2048
 hop_length: 512
 n_mels: 128
 fmin: 20
