@@ -59,7 +59,7 @@ def load_models(cfg: InferConfig, num_classes: int):
     return models
 
 
-def apply_tta(mel_spec, tta_ix):
+def _apply_tta(mel_spec, tta_ix):
     """
     Test Time Augmentation (TTA) をメルスペクトログラムに適用する関数。
     返却時に .copy() して負ストライド問題を回避する。
@@ -102,7 +102,7 @@ def _predict_for_segment(cfg, segment_audio: np.ndarray, models) -> np.ndarray:
     segment_preds = []
     for tta_ix in tta_indices:
         mel_spec = process_audio_segment(cfg, segment_audio)
-        mel_spec = apply_tta(mel_spec, tta_ix)
+        mel_spec = _apply_tta(mel_spec, tta_ix)
 
         mel_tensor = (
             torch.tensor(mel_spec, dtype=torch.float32)
@@ -117,7 +117,7 @@ def _predict_for_segment(cfg, segment_audio: np.ndarray, models) -> np.ndarray:
     return np.mean(segment_preds, axis=0)
 
 
-def predict_on_spectrogram(cfg, audio_path: str, models: list) -> tuple[list[str], list[np.ndarray]]:
+def _predict_on_spectrogram(cfg, audio_path: str, models: list) -> tuple[list[str], list[np.ndarray]]:
     """
     1 つのサウンドスケープ (.ogg) に対して推論を実行し、
     セグメント毎の row_id と予測確率を返す。
@@ -161,7 +161,7 @@ def run_inference(cfg: InferConfig, models):
     all_row_ids = []
     all_preds = []
     for audio_path in test_files:
-        row_ids, preds = predict_on_spectrogram(
+        row_ids, preds = _predict_on_spectrogram(
             cfg=cfg,
             audio_path=str(audio_path),
             models=models,
@@ -198,7 +198,7 @@ def create_submission(cfg: InferConfig, all_row_ids, all_preds, species_ids) -> 
     return submission_df
 
 
-def apply_time_smoothing(submission_df: pd.DataFrame, weights: dict | None = None) -> pd.DataFrame:
+def apply_time_smoothing(submission_df: pd.DataFrame, weights: list[float] | None = [0.2, 0.6, 0.2]) -> pd.DataFrame:
     """
     Apply time smoothing to the predictions in a submission file.
     ref: https://www.kaggle.com/code/salmanahmedtamu/labels-tta-efficientnet-b0-pytorch-inference/notebook
@@ -209,9 +209,6 @@ def apply_time_smoothing(submission_df: pd.DataFrame, weights: dict | None = Non
     Returns:
         None
     """
-    if weights is None:
-        weights = {"center": 0.6, "prev": 0.2, "next": 0.2}
-
     cols = submission_df.columns[1:]  # Prediction columns
     groups = submission_df["row_id"].astype(str).str.rsplit("_", n=1).str[0].values  # Extract group IDs
 
@@ -224,16 +221,10 @@ def apply_time_smoothing(submission_df: pd.DataFrame, weights: dict | None = Non
         # Apply smoothing
         for i in range(1, predictions.shape[0] - 1):
             new_predictions[i] = (
-                (predictions[i - 1] * weights["prev"])
-                + (predictions[i] * weights["center"])
-                + (predictions[i + 1] * weights["next"])
+                (predictions[i - 1] * weights[0]) + (predictions[i] * weights[1]) + (predictions[i + 1] * weights[2])
             )
-        new_predictions[0] = (predictions[0] * (weights["center"] + weights["prev"])) + (
-            predictions[1] * weights["next"]
-        )
-        new_predictions[-1] = (predictions[-1] * (weights["center"] + weights["next"])) + (
-            predictions[-2] * weights["prev"]
-        )
+        new_predictions[0] = (predictions[0] * (weights[1] + weights[0])) + (predictions[1] * weights[2])
+        new_predictions[-1] = (predictions[-1] * (weights[1] + weights[2])) + (predictions[-2] * weights[0])
 
         # Update the smoothed predictions
         sub_group[cols] = new_predictions
