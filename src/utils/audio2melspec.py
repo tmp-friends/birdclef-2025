@@ -78,10 +78,10 @@ def _audio2melspec(cfg, audio_data):
         fmin=cfg.spec.fmin,
         fmax=cfg.spec.fmax,
         power=2.0,
-        pad_mode="reflect",  # 鏡映 padding
-        norm="slaney",  # メルフィルタ正規化
-        htk=True,  # メル尺度の定義
-        center=True,  # STFT 中心 padding
+        # pad_mode="reflect",  # 鏡映 padding
+        # norm="slaney",  # メルフィルタ正規化
+        # htk=True,  # メル尺度の定義
+        # center=True,  # STFT 中心 padding
     )
 
     mel_spec_db = librosa.power_to_db(mel_spec, ref=np.max)
