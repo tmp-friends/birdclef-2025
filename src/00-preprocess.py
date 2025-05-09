@@ -26,17 +26,11 @@ def process_audio(cfg, row):
         audio_data, _ = librosa.load(row["filepath"], sr=cfg.spec.fs)
 
         # 目標とする録音時間にサンプリングレートを乗算することで必要なサンプル数を算出
-        target_samples = int(cfg.spec.window_size * cfg.spec.fs)
-
-        # 音声が短い場合のリピート補正
-        if len(audio_data) < target_samples:
-            n_copy = math.ceil(target_samples / len(audio_data))
-            if n_copy > 1:
-                audio_data = np.concatenate([audio_data] * n_copy)
+        seg_len = int(cfg.spec.window_size * cfg.spec.fs)
 
         # 音声データの中央部分のみ抽出
-        start_ix = max(0, int(len(audio_data) / 2 - target_samples / 2))
-        end_ix = max(len(audio_data), start_ix + target_samples)
+        start_ix = max(0, int(len(audio_data) / 2 - seg_len / 2))
+        end_ix = max(len(audio_data), start_ix + seg_len)
         center_audio = audio_data[start_ix:end_ix]
 
         mel_spec = process_audio_segment(cfg, center_audio)
@@ -63,7 +57,9 @@ def main(cfg: PreprocessConfig):
     # Load data
     train_df = pd.read_csv(cfg.dir.train_csv)
     taxonomy_df = pd.read_csv(cfg.dir.taxonomy_csv)
-    species_class_map = dict(zip(taxonomy_df["primary_label"], taxonomy_df["class_name"]))
+    species_class_map = dict(
+        zip(taxonomy_df["primary_label"], taxonomy_df["class_name"])
+    )
     LOGGER.info(train_df.head())
 
     # mapping 辞書の作成
@@ -75,11 +71,17 @@ def main(cfg: PreprocessConfig):
     working_df = train_df[["primary_label", "rating", "filename"]].copy()
     working_df["target"] = working_df.primary_label.map(label2id)
     working_df["filepath"] = cfg.dir.train_audio_dir + "/" + working_df.filename
-    working_df["samplename"] = working_df.filename.map(lambda x: x.split("/")[0] + "-" + x.split("/")[-1].split(".")[0])
-    working_df["class"] = working_df.primary_label.map(lambda x: species_class_map.get(x, "Unknown"))
+    working_df["samplename"] = working_df.filename.map(
+        lambda x: x.split("/")[0] + "-" + x.split("/")[-1].split(".")[0]
+    )
+    working_df["class"] = working_df.primary_label.map(
+        lambda x: species_class_map.get(x, "Unknown")
+    )
 
     total_samples = len(working_df)
-    LOGGER.info(f"Total samples to process: {total_samples} out of {len(working_df)} available")
+    LOGGER.info(
+        f"Total samples to process: {total_samples} out of {len(working_df)} available"
+    )
     LOGGER.info(f"Samples by class: {working_df['class'].value_counts()}")
 
     # 並列処理で実行
@@ -89,7 +91,9 @@ def main(cfg: PreprocessConfig):
 
     all_bird_data = {}
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(process_audio, cfg, row) for _, row in working_df.iterrows()]
+        futures = [
+            executor.submit(process_audio, cfg, row) for _, row in working_df.iterrows()
+        ]
 
         # 並列タスクの完了を待ち、結果を収集
         for future in concurrent.futures.as_completed(futures):
@@ -101,7 +105,9 @@ def main(cfg: PreprocessConfig):
     end_time = time.time()
 
     LOGGER.info(f"Processing completed in {end_time - start_time:.2f} seconds")
-    LOGGER.info(f"Successfully processed {len(all_bird_data)} files out of {total_samples} total")
+    LOGGER.info(
+        f"Successfully processed {len(all_bird_data)} files out of {total_samples} total"
+    )
     # npy で保存
     np.save("all_bird_data.npy", all_bird_data, allow_pickle=True)
 
@@ -127,7 +133,9 @@ def main(cfg: PreprocessConfig):
 
         for i, (samplename, class_name, species) in enumerate(samples):
             plt.subplot(2, 2, i + 1)
-            plt.imshow(all_bird_data[samplename], aspect="auto", origin="lower", cmap="viridis")
+            plt.imshow(
+                all_bird_data[samplename], aspect="auto", origin="lower", cmap="viridis"
+            )
             plt.title(f"{class_name}: {species}")
             plt.colorbar(format="%+2.0f dB")
 
@@ -138,7 +146,9 @@ def main(cfg: PreprocessConfig):
 
 if __name__ == "__main__":
     # Logger
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s:%(name)s - %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s:%(name)s - %(message)s"
+    )
     LOGGER = logging.getLogger(Path(__file__).name)
 
     # For descriptive error messages

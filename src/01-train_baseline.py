@@ -258,6 +258,8 @@ def run_training(
         LOGGER.info(f"Training set: {len(train_df)} samples")
         LOGGER.info(f"Validation set: {len(valid_df)} samples")
 
+        LOGGER.info(f"Training set stats: {train_df.describe()}")
+
         train_dataset = BirdCLEFDatasetFromNPY(
             cfg=cfg,
             df=train_df,

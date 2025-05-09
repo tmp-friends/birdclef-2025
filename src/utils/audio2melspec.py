@@ -17,10 +17,13 @@ def process_audio_segment(cfg: PreprocessConfig | InferConfig, audio_data: np.nd
     Returns:
         np.ndarray: メルスペクトログラムを表す2次元のNumPy配列。データ型はfloat32。
     """
-    if len(audio_data) < cfg.spec.fs * cfg.spec.window_size:
+
+    seg_len = int(cfg.spec.window_size * cfg.spec.fs)
+
+    if len(audio_data) < seg_len:
         audio_data = np.pad(
             audio_data,
-            (0, cfg.spec.fs * cfg.spec.window_size - len(audio_data)),
+            (0, seg_len - len(audio_data)),
             mode="reflect",
         )
 
@@ -78,13 +81,15 @@ def _audio2melspec(cfg, audio_data):
         fmin=cfg.spec.fmin,
         fmax=cfg.spec.fmax,
         power=2.0,
-        # pad_mode="reflect",  # 鏡映 padding
-        # norm="slaney",  # メルフィルタ正規化
-        # htk=True,  # メル尺度の定義
-        # center=True,  # STFT 中心 padding
+        pad_mode="reflect",  # STFT 計算時の信号端の鏡映 padding
+        norm="slaney",  # メルフィルタ正規化
+        htk=True,  # メル尺度の定義
+        center=True,  # STFT 中心 padding
     )
 
     mel_spec_db = librosa.power_to_db(mel_spec, ref=np.max)
-    mel_spec_norm = (mel_spec_db - mel_spec_db.min()) / (mel_spec_db.max() - mel_spec_db.min() + 1e-8)
+    mel_spec_norm = (mel_spec_db - mel_spec_db.min()) / (
+        mel_spec_db.max() - mel_spec_db.min() + 1e-8
+    )
 
     return mel_spec_norm
