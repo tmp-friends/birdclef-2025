@@ -28,11 +28,11 @@ def process_audio(cfg, row):
         # 目標とする録音時間にサンプリングレートを乗算することで必要なサンプル数を算出
         target_samples = int(cfg.spec.window_size * cfg.spec.fs)
 
-        # # 音声が短い場合のリピート補正
-        # if len(audio_data) < target_samples:
-        #     n_copy = math.ceil(target_samples / len(audio_data))
-        #     if n_copy > 1:
-        #         audio_data = np.concatenate([audio_data] * n_copy)
+        # 音声が短い場合のリピート補正
+        if len(audio_data) < target_samples:
+            n_copy = math.ceil(target_samples / len(audio_data))
+            if n_copy > 1:
+                audio_data = np.concatenate([audio_data] * n_copy)
 
         # 音声データの中央部分のみ抽出
         start_ix = max(0, int(len(audio_data) / 2 - target_samples / 2))
