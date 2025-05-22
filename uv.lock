@@ -253,6 +253,7 @@ dependencies = [
     { name = "seaborn" },
     { name = "timm" },
     { name = "torch" },
+    { name = "torchaudio" },
     { name = "torcheval" },
     { name = "torchmetrics" },
     { name = "torchvision" },
@@ -285,6 +286,7 @@ requires-dist = [
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "timm", specifier = "==0.9.16" },
     { name = "torch", specifier = "==2.1.2" },
+    { name = "torchaudio", specifier = ">=2.1.2" },
     { name = "torcheval", specifier = "==0.0.7" },
     { name = "torchmetrics", specifier = "==1.3.2" },
     { name = "torchvision", specifier = "==0.16.2" },
@@ -3132,6 +3134,26 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/e4/ae/2ad8820045b6631965750435f28583e80905b8273d57cf026163b51323ee/torch-2.1.2-cp311-cp311-win_amd64.whl", hash = "sha256:e0ee6cf90c8970e05760f898d58f9ac65821c37ffe8b04269ec787aa70962b69", size = 192324585 },
     { url = "https://files.pythonhosted.org/packages/dd/a0/6dd8662895ddaffb0ac689037451f93a73e9030d07b1b5965e3e3071f873/torch-2.1.2-cp311-none-macosx_10_9_x86_64.whl", hash = "sha256:76d37967c31c99548ad2c4d3f2cf191db48476f2e69b35a0937137116da356a1", size = 146707942 },
     { url = "https://files.pythonhosted.org/packages/1e/86/477ec85bf1f122931f00a2f3889ed9322c091497415a563291ffc119dacc/torch-2.1.2-cp311-none-macosx_11_0_arm64.whl", hash = "sha256:e2d83f07b4aac983453ea5bf8f9aa9dacf2278a8d31247f5d9037f37befc60e4", size = 59576825 },
+]
+
+[[package]]
+name = "torchaudio"
+version = "2.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "torch" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0f/44/83ad2df8261b7d16fdf7e56c006ebc9d72a1115581d4195c9c480f7f6cb6/torchaudio-2.1.2-cp310-cp310-macosx_10_13_x86_64.whl", hash = "sha256:06f8c02814e6cdd78626bbf44ad2bb8afa5b39ab650c6af18328a32311461058", size = 3306876 },
+    { url = "https://files.pythonhosted.org/packages/a8/6c/6780526584964ed2ff84812a5a5fbf58f748cc947d5f21a800b69e950fc8/torchaudio-2.1.2-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:9d676673c1ce4dd11fca145e3a6cd9b4e5b897cffad0f617d2906f2d3fc8c3a9", size = 1727181 },
+    { url = "https://files.pythonhosted.org/packages/25/83/4170df23c16c25818ce9591fd2b8109cda3f725d115d77417d4efef4eb46/torchaudio-2.1.2-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:23c1b34e98664a0ac239efd4e1a0af407b3dd0a86a5869114bae582c3e5437d7", size = 3262680 },
+    { url = "https://files.pythonhosted.org/packages/8f/74/57dc1de9e412ba80a2eadeca39a2fd6211786d6e6272732cb5e2dd320f27/torchaudio-2.1.2-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:f82657fc4ec3b473bf6c752c0ee62d7f511af9ef37e5143f8339ec049504d767", size = 1584315 },
+    { url = "https://files.pythonhosted.org/packages/ee/40/f712c40f30580fc7d57cb842617002707f35c99580306c79af0867591847/torchaudio-2.1.2-cp310-cp310-win_amd64.whl", hash = "sha256:683eaa721e016ca1f27bb28fa89feae37a6f7b98ff1ceee0d5e5aedd19bd982c", size = 2317919 },
+    { url = "https://files.pythonhosted.org/packages/a9/95/6e46b63ce567eab0104e2692e513cddd400bb5507314db369ceef2cff49b/torchaudio-2.1.2-cp311-cp311-macosx_10_13_x86_64.whl", hash = "sha256:c1084eedf4ced1af9fdd18910690ff615f89baeb30b32030806543fbc6f3657e", size = 3320189 },
+    { url = "https://files.pythonhosted.org/packages/42/e6/cd2386ff0bb1476c472593a77ca1870cbbddef901e63b04cc84ccd368da7/torchaudio-2.1.2-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:860acc32e6507063f2c13d81e26718199e215f34a2bcd6c9609a25e9bf21aa36", size = 1733739 },
+    { url = "https://files.pythonhosted.org/packages/1c/68/3495830433ab3c4bd95b94a20d83d0b8a01f28db227101f4741fc1babdac/torchaudio-2.1.2-cp311-cp311-manylinux1_x86_64.whl", hash = "sha256:50c651d60bde7a4e096bf376eddb9ea32da6e37c3827536d6e918798ad203dbf", size = 3266734 },
+    { url = "https://files.pythonhosted.org/packages/82/24/bcf6bed8b5933e60837028e691e454b8dd4af9e2f24e1b62812e1631448d/torchaudio-2.1.2-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:9a6bade8a2495a724f4ee6acb5e86828ff4083dc6c7c57c6386b54a0ea7afe71", size = 1589485 },
+    { url = "https://files.pythonhosted.org/packages/c9/c0/b738db223b85c0096e2c3b1aaa647419f9af68331f8ad09dba6a2d38136c/torchaudio-2.1.2-cp311-cp311-win_amd64.whl", hash = "sha256:47f322708c282e0b1b7548cdbe4e12451c531061761885d7c7fe2e479a4a3861", size = 2321589 },
 ]
 
 [[package]]
