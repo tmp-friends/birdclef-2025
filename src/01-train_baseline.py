@@ -49,11 +49,17 @@ def collate_fn(batch):
 
 def get_optimizer(cfg: TrainConfig, model):
     if cfg.optimizer == "Adam":
-        optimizer = optim.Adam(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
+        optimizer = optim.Adam(
+            model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay
+        )
     elif cfg.optimizer == "AdamW":
-        optimizer = optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
+        optimizer = optim.AdamW(
+            model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay
+        )
     elif cfg.optimizer == "SGD":
-        optimizer = optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.weight_decay)
+        optimizer = optim.SGD(
+            model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.weight_decay
+        )
     elif cfg.optimizer == "RAdamScheduleFree":
         optimizer = RAdamScheduleFree(model.parameters(), lr=cfg.lr, betas=(0.9, 0.999))
     else:
@@ -64,7 +70,9 @@ def get_optimizer(cfg: TrainConfig, model):
 
 def get_scheduler(cfg: TrainConfig, optimizer):
     if cfg.scheduler == "CosineAnnealingLR":
-        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.T_max, eta_min=cfg.min_lr)
+        scheduler = lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=cfg.T_max, eta_min=cfg.min_lr
+        )
     elif cfg.scheduler == "ReduceLROnPlateau":
         scheduler = lr_scheduler.ReduceLROnPlateau(
             optimizer,
@@ -75,7 +83,9 @@ def get_scheduler(cfg: TrainConfig, optimizer):
             verbose=True,
         )
     elif cfg.scheduler == "StepLR":
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=cfg.num_epochs // 3, gamma=0.5)
+        scheduler = lr_scheduler.StepLR(
+            optimizer, step_size=cfg.num_epochs // 3, gamma=0.5
+        )
     elif cfg.scheduler == "OneCycleLR":
         scheduler = None
     else:
@@ -331,9 +341,13 @@ def run_training(
                 scheduler if isinstance(scheduler, lr_scheduler.OneCycleLR) else None,
             )
 
-            valid_loss, valid_auc = validate(model, valid_loader, optimizer, criterion, cfg.device)
+            valid_loss, valid_auc = validate(
+                model, valid_loader, optimizer, criterion, cfg.device
+            )
 
-            if scheduler is not None and not isinstance(scheduler, lr_scheduler.OneCycleLR):
+            if scheduler is not None and not isinstance(
+                scheduler, lr_scheduler.OneCycleLR
+            ):
                 if isinstance(scheduler, lr_scheduler.ReduceLROnPlateau):
                     scheduler.step(valid_loss)
                 else:
@@ -351,7 +365,9 @@ def run_training(
                     {
                         "model_state_dict": model.state_dict(),
                         "optimizer_state_dict": optimizer.state_dict(),
-                        "scheduler_state_dict": scheduler.state_dict() if scheduler else None,
+                        "scheduler_state_dict": scheduler.state_dict()
+                        if scheduler
+                        else None,
                         "epoch": epoch,
                         "valid_auc": valid_auc,
                         "train_auc": train_auc,
@@ -410,7 +426,9 @@ def main(cfg: TrainConfig):
 
 if __name__ == "__main__":
     # Logger
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s:%(name)s - %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s:%(name)s - %(message)s"
+    )
     LOGGER = logging.getLogger(Path(__file__).name)
 
     # For descriptive error messages

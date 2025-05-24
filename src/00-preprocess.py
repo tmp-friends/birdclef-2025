@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 import time
+import pickle
 import math
 import concurrent.futures
 
@@ -17,28 +18,72 @@ from utils.utils import set_seed
 from conf.type import PreprocessConfig
 from utils.audio2melspec import process_audio_segment
 
+VOICE_DATA_PATH = "/home/tomoya/kaggle/birdclef-2025/output/eda/train_voice_data.pkl"
+if os.path.exists(VOICE_DATA_PATH):
+    with open(VOICE_DATA_PATH, "rb") as f:
+        VOICE_DATA = pickle.load(f)
+else:
+    VOICE_DATA = {}
+
+
+def _mask_voice_with_noise(
+    arr: np.ndarray, s: int, e: int, fade: int = 256, noise_db: float = -60.0
+):
+    """区間[s:e] を微小ホワイトノイズ + フェードでマスク"""
+    n = e - s
+    if n <= 0:
+        return
+    # -60 dB 相当の振幅
+    amp = 10 ** (noise_db / 20.0)
+    noise = np.random.randn(n) * amp
+    arr[s:e] = noise
+
+    # フェードイン / フェードアウト
+    f = min(fade, n // 2)
+    if f > 0:
+        win = np.linspace(0, 1, f, dtype=arr.dtype)
+        arr[s : s + f] *= win  # in
+        arr[e - f : e] *= win[::-1]  # out
+
 
 def process_audio(cfg, row):
-    """Process a single audio file to get the mel spectrogram"""
-
+    """1 ファイル → center-crop → 人声マスク → mel"""
     try:
-        # サンプリングレートを指定して、音声データを読み込む
-        audio_data, _ = librosa.load(row["filepath"], sr=cfg.spec.fs)
-
-        # 目標とする録音時間にサンプリングレートを乗算することで必要なサンプル数を算出
+        # --- load ---------------------------------------------------------
+        audio_data, _ = librosa.load(row["filepath"], sr=cfg.spec.fs, mono=True)
         seg_len = int(cfg.spec.window_size * cfg.spec.fs)
 
-        # 音声データの中央部分のみ抽出
-        start_ix = max(0, int(len(audio_data) / 2 - seg_len / 2))
-        end_ix = max(len(audio_data), start_ix + seg_len)
-        center_audio = audio_data[start_ix:end_ix]
+        # --- center-crop --------------------------------------------------
+        mid = len(audio_data) // 2
+        start_ix = max(0, mid - seg_len // 2)
+        end_ix = start_ix + seg_len
+        center_audio = audio_data[start_ix:end_ix].copy()  # copy が必要
 
+        # --- human-voice masking -----------------------------------------
+        voice_segments = VOICE_DATA.get(row["filepath"])
+        if voice_segments:
+            real_len = len(center_audio)  # ← 実際の長さ
+            for v in voice_segments:  # {'start':sec, 'end':sec}
+                g_s = int(v["start"] * cfg.spec.fs)
+                g_e = int(v["end"] * cfg.spec.fs)
+
+                # クロップ範囲に変換
+                s = max(0, g_s - start_ix)
+                e = max(0, g_e - start_ix)
+
+                # 必ず center_audio の範囲に収める
+                s = np.clip(s, 0, real_len)
+                e = np.clip(e, 0, real_len)
+
+                if e - s > 0:  # 長さ 0 区間は無視
+                    _mask_voice_with_noise(center_audio, s, e)
+
+        # --- mel ----------------------------------------------------------
         mel_spec = process_audio_segment(cfg, center_audio)
-
         return row["samplename"], mel_spec.astype(np.float32)
 
     except Exception as e:
-        LOGGER.error(e)
+        LOGGER.error(f"{row['filename']} でエラー: {e}")
 
 
 @hydra.main(config_path="conf", config_name="preprocess", version_base="1.1")
@@ -79,6 +124,7 @@ def main(cfg: PreprocessConfig):
     )
 
     total_samples = len(working_df)
+
     LOGGER.info(
         f"Total samples to process: {total_samples} out of {len(working_df)} available"
     )
