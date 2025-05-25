@@ -19,46 +19,21 @@ from modules.birdclef_model import BirdCLEFModel
 
 def load_models(cfg: InferConfig, num_classes: int):
     models = []
-    # ファイル名のパターン定義
-    pattern = "model_fold(\d+).pth"
 
-    # ディレクトリ内のファイルを事前にフィルタリング
-    files = [f for f in os.listdir(cfg.model_dir) if re.match(pattern, f)]
+    model_path = os.path.join(cfg.model_dir, "model_fold0_stage3.pth")
+    model = BirdCLEFModel(cfg=cfg, num_classes=num_classes)
+    # Load the checkpoint
+    checkpoint = torch.load(model_path, map_location=cfg.device, weights_only=False)
 
-    # 使用するフォールドを決定
-    folds_to_load = (
-        cfg.folds if hasattr(cfg, "folds") and cfg.folds else range(cfg.num_folds)
-    )
+    # Extract only the model's state_dict
+    if "model_state_dict" in checkpoint:
+        model.load_state_dict(checkpoint["model_state_dict"])
+    else:
+        model.load_state_dict(checkpoint)
 
-    for fold in folds_to_load:
-        # フォルダ内のファイルに対して正規表現マッチング
-        for file in files:
-            match = re.match(pattern, file)
-            if match:
-                (fold_number,) = match.groups()
-                # フォールド番号が現在のフォールドと一致するかチェック
-                if int(fold_number) == fold:
-                    LOGGER.info(f"Loading model file: {file}")
-
-                    model_path = os.path.join(cfg.model_dir, file)
-                    model = BirdCLEFModel(cfg=cfg, num_classes=num_classes)
-                    # Load the checkpoint
-                    checkpoint = torch.load(
-                        model_path, map_location=cfg.device, weights_only=False
-                    )
-
-                    # Extract only the model's state_dict
-                    if "model_state_dict" in checkpoint:
-                        model.load_state_dict(checkpoint["model_state_dict"])
-                    else:
-                        model.load_state_dict(checkpoint)
-
-                    model.to(cfg.device)
-                    model.eval()
-                    models.append(model)
-                    break
-        else:
-            LOGGER.warning(f"No model found for fold {fold}.")
+    model.to(cfg.device)
+    model.eval()
+    models.append(model)
 
     return models
 

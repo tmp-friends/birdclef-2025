@@ -5,6 +5,7 @@ from typing import Any
 @dataclass
 class DirConfig:
     train_audio_dir: str
+    train_soundscapes_dir: str
     train_csv: str
     taxonomy_csv: str
     submission_csv: str
@@ -61,6 +62,13 @@ class TrainConfig:
     aug_prob: float
     drop_rate: float
     drop_path_rate: float
+    pl_threshold: float
+    pl_lr_scale: float
+    pl_epochs: int
+    use_holdout: bool
+    valid_ratio: float
+    full_train_after_pl: bool
+    pl_success_threshold: float
 
 
 @dataclass

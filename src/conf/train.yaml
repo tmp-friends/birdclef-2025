@@ -37,3 +37,13 @@ aug_prob: 0.5
 # model
 drop_rate: 0.2
 drop_path_rate: 0.2
+
+# pseudo label
+pl_threshold: 0.8
+pl_lr_scale: 0.2    # Stage-2 learning-rate = lr * scale
+pl_epochs: 4
+
+use_holdout: true
+valid_ratio: 0.05
+full_train_after_pl: true
+pl_success_threshold: 0.70

@@ -2,10 +2,12 @@ import numpy as np
 import librosa
 import cv2
 
-from conf.type import PreprocessConfig, InferConfig
+from conf.type import PreprocessConfig, TrainConfig, InferConfig
 
 
-def process_audio_segment(cfg: PreprocessConfig | InferConfig, audio_data: np.ndarray):
+def process_audio_segment(
+    cfg: PreprocessConfig | TrainConfig | InferConfig, audio_data: np.ndarray
+):
     """
     単一のオーディオセグメントを処理してメルスペクトログラムを生成します。
 

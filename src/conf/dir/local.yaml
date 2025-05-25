@@ -1,4 +1,5 @@
 train_audio_dir: "/home/tomoya/kaggle/birdclef-2025/input/birdclef-2025/train_audio"
+train_soundscapes_dir: "/home/tomoya/kaggle/birdclef-2025/input/birdclef-2025/train_soundscapes"
 train_csv: "/home/tomoya/kaggle/birdclef-2025/input/birdclef-2025/train.csv"
 taxonomy_csv: "/home/tomoya/kaggle/birdclef-2025/input/birdclef-2025/taxonomy.csv"
 submission_csv: "/home/tomoya/kaggle/birdclef-2025/input/birdclef-2025/sample_submission.csv"
