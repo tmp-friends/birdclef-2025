@@ -39,7 +39,7 @@ drop_rate: 0.2
 drop_path_rate: 0.2
 
 # pseudo label
-pl_threshold: 0.8
+pl_threshold: 0.5
 pl_lr_scale: 0.2    # Stage-2 learning-rate = lr * scale
 pl_epochs: 4
 
