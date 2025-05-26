@@ -82,7 +82,7 @@ class BirdCLEFDatasetFromNPY(Dataset):
         }
 
     def _apply_spec_augmentations(self, spec: torch.Tensor) -> torch.Tensor:
-        """簡易 SpecAug (時間・周波数マスク+輝度)"""
+        """簡易 SpecAug (時間・周波数マスク+輝度+ガウシアンノイズ)"""
         C, H, W = spec.shape  # (1,H,W)
         # Time mask
         if random.random() < 0.5:
@@ -99,5 +99,10 @@ class BirdCLEFDatasetFromNPY(Dataset):
             gain = random.uniform(0.8, 1.2)
             bias = random.uniform(-0.1, 0.1)
             spec.mul_(gain).add_(bias).clamp_(0, 1)
+        # Gaussian noise
+        if random.random() < 0.5:
+            std = random.uniform(0.01, 0.05)  # ノイズ強度は適宜調整
+            noise = torch.normal(mean=0.0, std=std, size=spec.shape, device=spec.device)
+            spec.add_(noise).clamp_(0, 1)
 
         return spec
