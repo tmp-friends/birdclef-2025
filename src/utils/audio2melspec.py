@@ -19,16 +19,6 @@ def process_audio_segment(
     Returns:
         np.ndarray: メルスペクトログラムを表す2次元のNumPy配列。データ型はfloat32。
     """
-
-    seg_len = int(cfg.spec.window_size * cfg.spec.fs)
-
-    if len(audio_data) < seg_len:
-        audio_data = np.pad(
-            audio_data,
-            (0, seg_len - len(audio_data)),
-            mode="reflect",
-        )
-
     mel_spec = _audio2melspec(cfg=cfg, audio_data=audio_data)
 
     # Resize if needed

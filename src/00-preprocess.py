@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 from utils.utils import set_seed
 from conf.type import PreprocessConfig
 from utils.audio2melspec import process_audio_segment
+# from utils.audio_crop import random_crop
+
 
 VOICE_DATA_PATH = "/home/tomoya/kaggle/birdclef-2025/output/eda/train_voice_data.pkl"
 if os.path.exists(VOICE_DATA_PATH):
@@ -24,6 +26,20 @@ if os.path.exists(VOICE_DATA_PATH):
         VOICE_DATA = pickle.load(f)
 else:
     VOICE_DATA = {}
+
+
+def random_crop(y: np.ndarray, crop_len: int, rng: np.random.Generator):
+    """元配列 y から長さ crop_len をランダムに切り出し
+    (cropped_wave, crop_start_idx) を返す
+    """
+    if len(y) <= crop_len:
+        pad = crop_len - len(y)
+        y_pad = np.pad(y, (0, pad), mode="reflect")
+        return y_pad, 0  # start=0
+
+    start = rng.integers(0, len(y) - crop_len)
+
+    return y[start : start + crop_len].copy(), start
 
 
 def _mask_voice_with_noise(
@@ -47,35 +63,34 @@ def _mask_voice_with_noise(
 
 
 def process_audio(cfg, row):
-    """1 ファイル → center-crop → 人声マスク → mel"""
+    """1 ファイル → random crop → 人声マスク → mel"""
     try:
         # --- load ---------------------------------------------------------
         audio_data, _ = librosa.load(row["filepath"], sr=cfg.spec.fs, mono=True)
         seg_len = int(cfg.spec.window_size * cfg.spec.fs)
 
-        # --- center-crop --------------------------------------------------
-        mid = len(audio_data) // 2
-        start_ix = max(0, mid - seg_len // 2)
-        end_ix = start_ix + seg_len
-        center_audio = audio_data[start_ix:end_ix].copy()  # copy が必要
-
+        RNG = (
+            np.random.default_rng(cfg.seed)
+            if hasattr(cfg, "seed")
+            else np.random.default_rng()
+        )
+        center_audio, crop_start = random_crop(audio_data, seg_len, RNG)
+        real_len = len(center_audio)
         # --- human-voice masking -----------------------------------------
         voice_segments = VOICE_DATA.get(row["filepath"])
         if voice_segments:
-            real_len = len(center_audio)  # ← 実際の長さ
-            for v in voice_segments:  # {'start':sec, 'end':sec}
+            real_len = len(center_audio)
+            for v in voice_segments:
                 g_s = int(v["start"] * cfg.spec.fs)
                 g_e = int(v["end"] * cfg.spec.fs)
 
-                # クロップ範囲に変換
-                s = max(0, g_s - start_ix)
-                e = max(0, g_e - start_ix)
+                s = g_s - crop_start
+                e = g_e - crop_start
 
-                # 必ず center_audio の範囲に収める
                 s = np.clip(s, 0, real_len)
                 e = np.clip(e, 0, real_len)
 
-                if e - s > 0:  # 長さ 0 区間は無視
+                if e - s > 0:
                     _mask_voice_with_noise(center_audio, s, e)
 
         # --- mel ----------------------------------------------------------

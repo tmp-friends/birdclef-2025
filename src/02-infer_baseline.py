@@ -100,26 +100,31 @@ def _forward(models: list[torch.nn.Module], x: torch.Tensor) -> torch.Tensor:
 
 
 def _predict_for_segment(cfg, segment_audio: np.ndarray, models) -> np.ndarray:
-    """1セグメントに対する予測（TTA を考慮）"""
+    """1セグメントに対する予測 (TTA と random_crop を考慮）"""
     # TTA ありなら複数 mel_spec を作り平均、無しなら 1 つ
-    tta_indices = range(cfg.tta_count) if cfg.uses_tta else [0]
+    crop_len = int(cfg.spec.window_size * cfg.spec.fs)
 
-    segment_preds = []
-    for tta_ix in tta_indices:
-        mel_spec = process_audio_segment(cfg, segment_audio)
-        mel_spec = _apply_tta(mel_spec, tta_ix)
+    # --- 再現性のために numpy RNG を生成 --------------------------
+    #   例: cfg.seed が 42, seg_len=5s, seg_idx=3 なら 42_00003
+    base_seed = cfg.seed * 100000 + len(segment_audio)
+    rng = np.random.default_rng(base_seed)
 
-        mel_tensor = (
-            torch.tensor(mel_spec, dtype=torch.float32)
-            .unsqueeze(0)
-            .unsqueeze(0)
-            .to(cfg.device)  # (1, H, W)  # (1, 1, H, W)
-        )
+    tta_preds = []
+    # 回数 cfg.tta_count だけ random-crop
+    # for _ in range(cfg.tta_count):
+    if len(segment_audio) > crop_len:
+        offset = rng.integers(0, len(segment_audio) - crop_len)
+        crop = segment_audio[offset : offset + crop_len]
+    else:  # 5 s 未満なら pad
+        pad = crop_len - len(segment_audio)
+        crop = np.pad(segment_audio, (0, pad), mode="reflect")
 
-        pred = _forward(models, mel_tensor)
-        segment_preds.append(pred.cpu().numpy().squeeze())
+    mel = process_audio_segment(cfg, crop)  # (H,W)
+    mel = torch.tensor(mel).unsqueeze(0).unsqueeze(0).to(cfg.device)  # (1,1,H,W)
+    pred = _forward(models, mel).cpu().numpy().squeeze()  # (n_classes,)
+    tta_preds.append(pred)
 
-    return np.mean(segment_preds, axis=0)
+    return np.mean(tta_preds, axis=0)
 
 
 def _predict_on_spectrogram(
