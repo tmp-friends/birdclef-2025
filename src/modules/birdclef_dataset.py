@@ -104,5 +104,19 @@ class BirdCLEFDatasetFromNPY(Dataset):
             std = random.uniform(0.01, 0.05)  # ノイズ強度は適宜調整
             noise = torch.normal(mean=0.0, std=std, size=spec.shape, device=spec.device)
             spec.add_(noise).clamp_(0, 1)
+        # Pink noise
+        if random.random() < 0.5:
+            std = random.uniform(0.01, 0.05)
+            # Pink noise: 1/f noise
+            pink = torch.randn_like(spec)
+            # FFT
+            f = torch.fft.rfft(pink, dim=-1)
+            freqs = torch.fft.rfftfreq(spec.shape[-1])
+            # Avoid division by zero
+            freqs[0] = freqs[1] if len(freqs) > 1 else 1.0
+            f = f / (freqs[None, None, :] ** 0.5)
+            pink = torch.fft.irfft(f, n=spec.shape[-1], dim=-1)
+            pink = pink * std
+            spec.add_(pink).clamp_(0, 1)
 
         return spec
