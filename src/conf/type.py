@@ -72,6 +72,46 @@ class TrainConfig:
 
 
 @dataclass
+class TrainAugConfig:
+    dir: DirConfig
+    spec: SpecConfig
+    model: ModelConfig
+    seed: int
+    device: str
+    spectrogram_npy_path: str
+    num_folds: int
+    fold: int
+    num_epochs: int
+    train_batch_size: int
+    valid_batch_size: int
+    scheduler: str
+    optimizer: str
+    lr: float
+    weight_decay: float
+    T_max: int
+    min_lr: float
+    criterion: str
+    early_stopping: int
+    fm_w: int
+    fm_p: float
+    tm_w: int
+    tm_p: float
+    gb_p: float
+    rs_p: float
+    cm_p: float
+    cm_alpha: float
+    drop_rate: float
+    drop_path_rate: float
+    pl_threshold: float
+    pl_lr_scale: float
+    pl_epochs: int
+    use_holdout: bool
+    valid_ratio: float
+    full_train_after_pl: bool
+    pl_success_threshold: float
+
+
+@dataclass
 class InferConfig:
     dir: DirConfig
     spec: SpecConfig
