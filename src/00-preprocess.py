@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from utils.utils import set_seed
 from conf.type import PreprocessConfig
 from utils.audio2melspec import process_audio_segment
-# from utils.audio_crop import random_crop
+from utils.sampling import random_crop, rms_crop
 
 
 VOICE_DATA_PATH = "/home/tomoya/kaggle/birdclef-2025/output/eda/train_voice_data.pkl"
@@ -26,20 +26,6 @@ if os.path.exists(VOICE_DATA_PATH):
         VOICE_DATA = pickle.load(f)
 else:
     VOICE_DATA = {}
-
-
-def random_crop(y: np.ndarray, crop_len: int, rng: np.random.Generator):
-    """元配列 y から長さ crop_len をランダムに切り出し
-    (cropped_wave, crop_start_idx) を返す
-    """
-    if len(y) <= crop_len:
-        pad = crop_len - len(y)
-        y_pad = np.pad(y, (0, pad), mode="reflect")
-        return y_pad, 0  # start=0
-
-    start = rng.integers(0, len(y) - crop_len)
-
-    return y[start : start + crop_len].copy(), start
 
 
 def _mask_voice_with_noise(
@@ -66,7 +52,7 @@ def process_audio(cfg, row):
     """1 ファイル → random crop → 人声マスク → mel"""
     try:
         # --- load ---------------------------------------------------------
-        audio_data, _ = librosa.load(row["filepath"], sr=cfg.spec.fs, mono=True)
+        wav, _ = librosa.load(row["filepath"], sr=cfg.spec.fs, mono=True)
         seg_len = int(cfg.spec.window_size * cfg.spec.fs)
 
         RNG = (
@@ -74,7 +60,8 @@ def process_audio(cfg, row):
             if hasattr(cfg, "seed")
             else np.random.default_rng()
         )
-        center_audio, crop_start = random_crop(audio_data, seg_len, RNG)
+        # center_audio, crop_start = random_crop(wav, seg_len, RNG)
+        center_audio, crop_start = rms_crop(wav, seg_len, cfg.spec.fs)
         real_len = len(center_audio)
         # --- human-voice masking -----------------------------------------
         voice_segments = VOICE_DATA.get(row["filepath"])

@@ -59,8 +59,8 @@ class BirdCLEFDatasetFromNPY(Dataset):
 
         # ----- torch tensor & optional aug --------------------------------
         spec = torch.tensor(spec, dtype=torch.float32).unsqueeze(0)  # (1, H, W)
-        if self.mode == "train" and random.random() < self.cfg.aug_prob:
-            spec = self._apply_spec_augmentations(spec)
+        # if self.mode == "train" and random.random() < self.cfg.aug_prob:
+        #     spec = self._apply_spec_augmentations(spec)
 
         # ----- one-hot label ---------------------------------------------
         target = np.zeros(self.num_classes, dtype=np.float32)

@@ -15,6 +15,7 @@ from utils.utils import set_seed
 from conf.type import InferConfig
 from utils.audio2melspec import process_audio_segment
 from modules.birdclef_model import BirdCLEFModel
+from utils.sampling import rms_crop
 
 
 def load_models(cfg: InferConfig, num_classes: int):
@@ -110,14 +111,8 @@ def _predict_for_segment(cfg, segment_audio: np.ndarray, models) -> np.ndarray:
     rng = np.random.default_rng(base_seed)
 
     tta_preds = []
-    # 回数 cfg.tta_count だけ random-crop
-    # for _ in range(cfg.tta_count):
-    if len(segment_audio) > crop_len:
-        offset = rng.integers(0, len(segment_audio) - crop_len)
-        crop = segment_audio[offset : offset + crop_len]
-    else:  # 5 s 未満なら pad
-        pad = crop_len - len(segment_audio)
-        crop = np.pad(segment_audio, (0, pad), mode="reflect")
+    # rms_cropを使って切り出し
+    crop, _ = rms_crop(segment_audio, crop_len, cfg.spec.fs)
 
     mel = process_audio_segment(cfg, crop)  # (H,W)
     mel = torch.tensor(mel).unsqueeze(0).unsqueeze(0).to(cfg.device)  # (1,1,H,W)
