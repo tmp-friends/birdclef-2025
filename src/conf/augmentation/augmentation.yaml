@@ -1,9 +1,13 @@
 # augmentation
-fm_w: 24          # FrequencyMask 幅
+rs_p: 0.3
+sa_p: 0.3
+fm_w: 24
 fm_p: 0.5
-tm_w: 32          # TimeMask 幅
+tm_w: 32
 tm_p: 0.5
-gb_p: 0.5         # Gain/Bias 適用確率
-rs_p: 0.3         # Resize 適用確率
-cm_p: 0.7         # CutMix 適用確率
+ni_p: 0.3
+gn_p: 0.3
+pn_p: 0.3
+gb_p: 0.5
+cm_p: 0.7
 cm_alpha: 1.0

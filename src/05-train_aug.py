@@ -23,7 +23,7 @@ from conf.type import TrainConfig
 from modules.birdclef_dataset import BirdCLEFDatasetFromNPY
 from modules.birdclef_model import BirdCLEFModel
 from modules.loss import FocalLossBCE
-from utils.augmentation import V2SAugment
+from utils.augmentation import Augmentation
 
 
 def make_collate_fn(augmentor):
@@ -279,7 +279,7 @@ def run_training(
     """
     skf = StratifiedKFold(n_splits=cfg.num_folds, shuffle=True, random_state=cfg.seed)
 
-    aug = V2SAugment(cfg.augmentation)
+    aug = Augmentation(cfg.augmentation)
     collate_fn = make_collate_fn(aug)
 
     best_scores = []

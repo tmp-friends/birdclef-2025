@@ -4,7 +4,6 @@ import torch
 from torch.utils.data import Dataset
 
 from conf.type import TrainConfig
-from utils.augmentation import V2SAugment
 
 
 class BirdCLEFDatasetFromNPY(Dataset):

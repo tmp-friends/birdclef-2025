@@ -6,70 +6,53 @@ import torch.nn.functional as F
 import torchaudio
 
 
-class _FreqMask:
-    def __init__(self, max_w=24, p=0.5):
-        self.max_w, self.p = max_w, p
+class Augmentation:
+    def __init__(self, cfg):
+        # Spec 変換系
+        self.resize = _RandResizeTime(p=cfg.rs_p)
+        # self.spec_aug = _SpecAugment(p=cfg.sa_p)
+        self.freq = _FreqMask(max_w=cfg.fm_w, p=cfg.fm_p)
+        self.time = _TimeMask(max_w=cfg.tm_w, p=cfg.tm_p)
 
-    def __call__(self, x):
-        if random.random() > self.p:
-            return x
-        w = random.randint(1, self.max_w)
-        f0 = random.randint(0, x.size(-2) - w)
-        x[..., f0 : f0 + w, :] = 0.0
+        self.gainbias = _RandGainBias(p=cfg.gb_p)
+        self.cutmix = _CutMixRect(p=cfg.cm_p, alpha=cfg.cm_alpha)
 
-        return x
+        # Noise 系
+        self.noise_injection = _NoiseInjection(p=cfg.ni_p)
+        self.gaussian_noise = _GaussianNoiseSNR(p=cfg.gn_p)
+        self.pink_noise = _PinkNoiseSNR(p=cfg.pn_p)
 
+    def __call__(self, sample, pool=None):
+        spec, target = sample["melspec"], sample["target"]
 
-class _TimeMask:
-    def __init__(self, max_w=32, p=0.5):
-        self.max_w, self.p = max_w, p
+        # 1. リサイズ（時間軸方向の変形）
+        spec = self.resize(spec)
 
-    def __call__(self, x):
-        if random.random() > self.p:
-            return x
-        w = random.randint(1, self.max_w)
-        t0 = random.randint(0, x.size(-1) - w)
-        x[..., :, t0 : t0 + w] = 0.0
+        # 2. マスキング操作（周波数・時間領域）
+        # spec = self.spec_aug(spec)
+        spec = self.freq(spec)
+        spec = self.time(spec)
 
-        return x
+        # 3. ノイズ追加（マスク後、ゲイン調整前）
+        noise_type = random.randint(0, 2)
+        if noise_type == 0:
+            spec = self.noise_injection(spec)
+        elif noise_type == 1:
+            spec = self.gaussian_noise(spec)
+        else:
+            spec = self.pink_noise(spec)
 
+        # 4. ゲイン/バイアス調整（ノイズ追加後に振幅調整）
+        spec = self.gainbias(spec)
 
-class _RandGainBias:
-    def __init__(self, gain=(0.8, 1.2), bias=(-0.1, 0.1), p=0.5):
-        self.gain, self.bias, self.p = gain, bias, p
+        # 5. CutMix（最後に他サンプルとの混合）
+        if pool is not None:
+            spec, target = self.cutmix(spec, target, pool)
 
-    def __call__(self, x):
-        if random.random() > self.p:
-            return x
-        g = random.uniform(*self.gain)
-        b = random.uniform(*self.bias)
+        sample["melspec"] = spec
+        sample["target"] = target
 
-        return torch.clamp(x * g + b, 0.0, 1.0)
-
-
-class _CutMixRect:
-    """矩形を切り貼りしながらラベルも線形合成"""
-
-    def __init__(self, p=0.5, alpha=1.0):
-        self.p, self.alpha = p, alpha
-
-    def __call__(self, spec, target, pool):
-        if random.random() > self.p or len(pool) == 0:
-            return spec, target
-        lam = np.random.beta(self.alpha, self.alpha)
-        h, w = spec.size(-2), spec.size(-1)
-        rw, rh = int(w * math.sqrt(1.0 - lam)), int(h * math.sqrt(1.0 - lam))
-        rx, ry = random.randint(0, w - rw), random.randint(0, h - rh)
-
-        j = random.randint(0, len(pool) - 1)
-        spec2, tgt2 = pool[j]
-        spec2 = spec2.to(spec.device)
-
-        spec[..., ry : ry + rh, rx : rx + rw] = spec2[..., ry : ry + rh, rx : rx + rw]
-        lam = 1 - (rw * rh) / (w * h)
-        target = target * lam + tgt2 * (1 - lam)
-
-        return spec, target
+        return sample
 
 
 class _RandResizeTime:
@@ -113,32 +96,68 @@ class _RandResizeTime:
         return x
 
 
-class _AddBackgroundNoise:
-    def __init__(self, noise_paths, min_snr_in_db=3.0, max_snr_in_db=30.0, p=0.5):
-        self.noise_paths = noise_paths
-        self.min_snr = min_snr_in_db
-        self.max_snr = max_snr_in_db
-        self.p = p
+class _FreqMask:
+    def __init__(self, max_w=24, p=0.5):
+        self.max_w, self.p = max_w, p
 
     def __call__(self, x):
-        if random.random() > self.p or not self.noise_paths:
+        if random.random() > self.p:
             return x
-        noise_path = random.choice(self.noise_paths)
-        noise, _ = torchaudio.load(noise_path)
-        if noise.shape[1] < x.shape[-1]:
-            # pad noise
-            repeat = int(np.ceil(x.shape[-1] / noise.shape[1]))
-            noise = noise.repeat(1, repeat)[:, : x.shape[-1]]
-        else:
-            start = random.randint(0, noise.shape[1] - x.shape[-1])
-            noise = noise[:, start : start + x.shape[-1]]
-        snr = random.uniform(self.min_snr, self.max_snr)
-        x_power = x.pow(2).mean()
-        n_power = noise.pow(2).mean()
-        factor = (x_power / (10 ** (snr / 10)) / (n_power + 1e-8)).sqrt()
-        x = x + noise * factor
+        w = random.randint(1, self.max_w)
+        f0 = random.randint(0, x.size(-2) - w)
+        x[..., f0 : f0 + w, :] = 0.0
 
         return x
+
+
+class _TimeMask:
+    def __init__(self, max_w=32, p=0.5):
+        self.max_w, self.p = max_w, p
+
+    def __call__(self, x):
+        if random.random() > self.p:
+            return x
+        w = random.randint(1, self.max_w)
+        t0 = random.randint(0, x.size(-1) - w)
+        x[..., :, t0 : t0 + w] = 0.0
+
+        return x
+
+
+class _SpecAugment:
+    def __init__(self, F=24, T=32, num_masks=2, warp=False, warp_w=80, p=0.6):
+        self.F, self.T, self.num_masks = F, T, num_masks
+        self.warp, self.warp_w, self.p = warp, warp_w, p
+
+    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+        if random.random() > self.p:
+            return x
+        single = x.dim() == 3
+        if single:
+            x = x.unsqueeze(0)  # (1,C,H,W)
+        _, C, H, W = x.shape
+
+        # optional time-warp
+        if self.warp and W > 2 * self.warp_w:
+            center = random.randint(self.warp_w, W - self.warp_w)
+            warped = center + random.randint(-self.warp_w, self.warp_w)
+            src = torch.arange(W, device=x.device)
+            grid = (src - center) / (W / 2)  # [-1,1]
+            grid = grid.view(1, 1, 1, -1).repeat(1, 1, H, 1)
+            x = F.grid_sample(x, grid.permute(0, 2, 3, 1), align_corners=True)
+
+        # freq/time mask
+        for _ in range(self.num_masks):
+            # F-mask
+            f = random.randint(1, self.F)
+            f0 = random.randint(0, H - f)
+            x[..., f0 : f0 + f, :] = 0.0
+            # T-mask
+            t = random.randint(1, self.T)
+            t0 = random.randint(0, W - t)
+            x[..., :, t0 : t0 + t] = 0.0
+
+        return x.squeeze(0) if single else x
 
 
 class _NoiseInjection:
@@ -214,44 +233,67 @@ class _PinkNoiseSNR:
         return x + y
 
 
-class V2SAugment:
-    def __init__(self, cfg):
-        self.freq = _FreqMask(max_w=cfg.fm_w, p=cfg.fm_p)
-        self.time = _TimeMask(max_w=cfg.tm_w, p=cfg.tm_p)
-        self.gainbias = _RandGainBias(p=cfg.gb_p)
-        self.resize = _RandResizeTime(p=cfg.rs_p)
-        self.cutmix = _CutMixRect(p=cfg.cm_p, alpha=cfg.cm_alpha)
-        self.noise_injection = _NoiseInjection(p=0.3)
-        self.gaussian_noise = _GaussianNoiseSNR(p=0.3)
-        self.pink_noise = _PinkNoiseSNR(p=0.3)
+class _RandGainBias:
+    def __init__(self, gain=(0.8, 1.2), bias=(-0.1, 0.1), p=0.5):
+        self.gain, self.bias, self.p = gain, bias, p
 
-    def __call__(self, sample, pool=None):
-        spec, target = sample["melspec"], sample["target"]
+    def __call__(self, x):
+        if random.random() > self.p:
+            return x
+        g = random.uniform(*self.gain)
+        b = random.uniform(*self.bias)
 
-        # 1. リサイズ（時間軸方向の変形）
-        spec = self.resize(spec)
+        return torch.clamp(x * g + b, 0.0, 1.0)
 
-        # 2. マスキング操作（周波数・時間領域）
-        spec = self.freq(spec)
-        spec = self.time(spec)
 
-        # 3. ノイズ追加（マスク後、ゲイン調整前）
-        noise_type = random.randint(0, 2)
-        if noise_type == 0:
-            spec = self.noise_injection(spec)
-        elif noise_type == 1:
-            spec = self.gaussian_noise(spec)
+class _CutMixRect:
+    """矩形を切り貼りしながらラベルも線形合成"""
+
+    def __init__(self, p=0.5, alpha=1.0):
+        self.p, self.alpha = p, alpha
+
+    def __call__(self, spec, target, pool):
+        if random.random() > self.p or len(pool) == 0:
+            return spec, target
+        lam = np.random.beta(self.alpha, self.alpha)
+        h, w = spec.size(-2), spec.size(-1)
+        rw, rh = int(w * math.sqrt(1.0 - lam)), int(h * math.sqrt(1.0 - lam))
+        rx, ry = random.randint(0, w - rw), random.randint(0, h - rh)
+
+        j = random.randint(0, len(pool) - 1)
+        spec2, tgt2 = pool[j]
+        spec2 = spec2.to(spec.device)
+
+        spec[..., ry : ry + rh, rx : rx + rw] = spec2[..., ry : ry + rh, rx : rx + rw]
+        lam = 1 - (rw * rh) / (w * h)
+        target = target * lam + tgt2 * (1 - lam)
+
+        return spec, target
+
+
+class _AddBackgroundNoise:
+    def __init__(self, noise_paths, min_snr_in_db=3.0, max_snr_in_db=30.0, p=0.5):
+        self.noise_paths = noise_paths
+        self.min_snr = min_snr_in_db
+        self.max_snr = max_snr_in_db
+        self.p = p
+
+    def __call__(self, x):
+        if random.random() > self.p or not self.noise_paths:
+            return x
+        noise_path = random.choice(self.noise_paths)
+        noise, _ = torchaudio.load(noise_path)
+        if noise.shape[1] < x.shape[-1]:
+            # pad noise
+            repeat = int(np.ceil(x.shape[-1] / noise.shape[1]))
+            noise = noise.repeat(1, repeat)[:, : x.shape[-1]]
         else:
-            spec = self.pink_noise(spec)
+            start = random.randint(0, noise.shape[1] - x.shape[-1])
+            noise = noise[:, start : start + x.shape[-1]]
+        snr = random.uniform(self.min_snr, self.max_snr)
+        x_power = x.pow(2).mean()
+        n_power = noise.pow(2).mean()
+        factor = (x_power / (10 ** (snr / 10)) / (n_power + 1e-8)).sqrt()
+        x = x + noise * factor
 
-        # 4. ゲイン/バイアス調整（ノイズ追加後に振幅調整）
-        spec = self.gainbias(spec)
-
-        # 5. CutMix（最後に他サンプルとの混合）
-        if pool is not None:
-            spec, target = self.cutmix(spec, target, pool)
-
-        sample["melspec"] = spec
-        sample["target"] = target
-
-        return sample
+        return x

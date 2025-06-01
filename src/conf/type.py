@@ -27,13 +27,17 @@ class SpecConfig:
 
 @dataclass
 class AugmentationConfig:
-    fm_w: int  # FrequencyMask 幅
-    fm_p: float
+    rs_p: float  # Resize p
+    sa_p: float  # SpecAug p
+    fm_w: int
+    fm_p: float  # FreqMask p
     tm_w: int
-    tm_p: float
-    gb_p: float  # Gain/Bias 適用確率
-    rs_p: float  # Resize 適用確率
-    cm_p: float  # CutMix 適用確率
+    tm_p: float  # TimeMask p
+    ni_p: float  # NoiseInjection p
+    gn_p: float  # GaussianNoise p
+    pn_p: float  # PinkNoise p
+    gb_p: float  # Gain/Bias p
+    cm_p: float  # CutMix p
     cm_alpha: float
 
 
