@@ -105,11 +105,6 @@ def _predict_for_segment(cfg, segment_audio: np.ndarray, models) -> np.ndarray:
     # TTA ありなら複数 mel_spec を作り平均、無しなら 1 つ
     crop_len = int(cfg.spec.window_size * cfg.spec.fs)
 
-    # --- 再現性のために numpy RNG を生成 --------------------------
-    #   例: cfg.seed が 42, seg_len=5s, seg_idx=3 なら 42_00003
-    base_seed = cfg.seed * 100000 + len(segment_audio)
-    rng = np.random.default_rng(base_seed)
-
     tta_preds = []
     # rms_cropを使って切り出し
     crop, _ = rms_crop(segment_audio, crop_len, cfg.spec.fs)
@@ -120,6 +115,22 @@ def _predict_for_segment(cfg, segment_audio: np.ndarray, models) -> np.ndarray:
     tta_preds.append(pred)
 
     return np.mean(tta_preds, axis=0)
+
+
+def _apply_power_to_low_ranked_cols(
+    p: np.ndarray, top_k: int = 30, exponent: int | float = 2.0, inplace: bool = True
+) -> np.ndarray:
+    """
+    各列の最大値で列を順位付けし、top_k 以降の列だけを p^exponent で強調／平坦化する。
+    ref: https://www.kaggle.com/code/myso1987/post-processing-with-power-adjustment-for-low-rank
+    """
+    if not inplace:
+        p = p.copy()
+
+    tail_cols = np.argsort(-p.max(axis=0))[top_k:]
+    p[:, tail_cols] = p[:, tail_cols] ** exponent
+
+    return p
 
 
 def _predict_on_spectrogram(
@@ -154,6 +165,15 @@ def _predict_on_spectrogram(
 
     except Exception as e:
         LOGGER.error(f"Error processing {audio_path}: {e}")
+
+    # 後処理
+    P = np.vstack(preds)
+    P = _apply_power_to_low_ranked_cols(
+        P,
+        top_k=30,
+        exponent=2,
+    )
+    preds = [P[i] for i in range(P.shape[0])]
 
     return row_ids, preds
 
