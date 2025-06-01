@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from utils.utils import set_seed
 from conf.type import PreprocessConfig
 from utils.audio2melspec import process_audio_segment
-from utils.sampling import random_crop, rms_crop
+from utils.sampling import random_crop, rms_crop, rms_crop_shift
 
 
 VOICE_DATA_PATH = "/home/tomoya/kaggle/birdclef-2025/output/eda/train_voice_data.pkl"
@@ -55,13 +55,12 @@ def process_audio(cfg, row):
         wav, _ = librosa.load(row["filepath"], sr=cfg.spec.fs, mono=True)
         seg_len = int(cfg.spec.window_size * cfg.spec.fs)
 
-        RNG = (
-            np.random.default_rng(cfg.seed)
-            if hasattr(cfg, "seed")
-            else np.random.default_rng()
-        )
         # center_audio, crop_start = random_crop(wav, seg_len, RNG)
-        center_audio, crop_start = rms_crop(wav, seg_len, cfg.spec.fs)
+        # center_audio, crop_start = rms_crop(wav, seg_len, cfg.spec.fs)
+        center_audio, crop_start = rms_crop_shift(
+            wav=wav, seg_len=seg_len, sr=cfg.spec.fs
+        )
+
         real_len = len(center_audio)
         # --- human-voice masking -----------------------------------------
         voice_segments = VOICE_DATA.get(row["filepath"])
