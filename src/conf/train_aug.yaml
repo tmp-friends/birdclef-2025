@@ -11,6 +11,7 @@ defaults:
   - dir: local
   - spec: MelSpectrogram
   - model: EfficientNetB0
+  - augmentation: augmentation
 
 seed: 42
 device: "cuda"
@@ -29,16 +30,6 @@ T_max: 10
 min_lr: 1e-6
 criterion: "FocalLossBCE"
 early_stopping: 3
-
-# augmentation
-fm_w: 24          # FrequencyMask 幅
-fm_p: 0.5
-tm_w: 32          # TimeMask 幅
-tm_p: 0.5
-gb_p: 0.5         # Gain/Bias 適用確率
-rs_p: 0.3         # Resize 適用確率
-cm_p: 0.7         # CutMix 適用確率
-cm_alpha: 1.0
 
 # model
 drop_rate: 0.2

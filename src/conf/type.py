@@ -26,6 +26,18 @@ class SpecConfig:
 
 
 @dataclass
+class AugmentationConfig:
+    fm_w: int  # FrequencyMask 幅
+    fm_p: float
+    tm_w: int
+    tm_p: float
+    gb_p: float  # Gain/Bias 適用確率
+    rs_p: float  # Resize 適用確率
+    cm_p: float  # CutMix 適用確率
+    cm_alpha: float
+
+
+@dataclass
 class ModelConfig:
     name: str
     params: dict[str, Any]
@@ -42,6 +54,7 @@ class TrainConfig:
     dir: DirConfig
     spec: SpecConfig
     model: ModelConfig
+    augmentation: AugmentationConfig
     seed: int
     device: str
     spectrogram_npy_path: str
@@ -109,6 +122,7 @@ class TrainAugConfig:
     valid_ratio: float
     full_train_after_pl: bool
     pl_success_threshold: float
+    augmentation: AugmentationConfig
 
 
 @dataclass

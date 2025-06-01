@@ -28,7 +28,7 @@ def rms_crop(
     sr         : int             サンプリングレート
     stride_s   : float           何秒ごとに RMS を計算するか (default=1.0s)
     """
-    if len(wav) <= seg_len:  # ⻑さ不⾜なら円環 pad
+    if len(wav) <= seg_len:  # ⻑さ不⾜なら circular padding
         k = int(np.ceil(seg_len / len(wav)))
         return np.tile(wav, k)[:seg_len], 0
 
@@ -41,3 +41,42 @@ def rms_crop(
             max_rms, max_idx = e, s
 
     return wav[max_idx : max_idx + seg_len], max_idx
+
+
+# TODO: 5s 間のランダムな切り出しになっていないので修正
+def random_shift(
+    wav: np.ndarray,
+    max_seg_len: int = None,
+    rng: np.random.Generator = None,
+    sr: int = None,
+) -> tuple[np.ndarray, int]:
+    """元配列 wav から長さ 0～5秒の間でランダムに切り出し
+    (cropped_wave, crop_start_idx) を返す
+    長さ不足なら circular padding
+
+    Parameters
+    ----------
+    wav         : np.ndarray      1-D 波形
+    max_seg_len : int             最大サンプル数 (指定がない場合、sr * 5秒 で計算)
+    rng         : np.random.Generator 乱数生成器 (Noneの場合は新規作成)
+    sr          : int             サンプリングレート (max_seg_len が None の場合に使用)
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    # Calculate maximum segment length if not provided (default to 5 seconds)
+    if max_seg_len is None:
+        if sr is None:
+            raise ValueError("Either max_seg_len or sr must be provided")
+        max_seg_len = int(sr * 5.0)  # 5秒の最大セグメント長
+
+    # Generate random segment length between 1 sample and max_seg_len
+    seg_len = rng.integers(1, max_seg_len + 1)
+
+    if len(wav) <= seg_len:
+        k = int(np.ceil(seg_len / len(wav)))
+        return np.tile(wav, k)[:seg_len], 0  # start=0
+
+    start = rng.integers(0, len(wav) - seg_len)
+
+    return wav[start : start + seg_len].copy(), start

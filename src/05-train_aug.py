@@ -15,6 +15,7 @@ import torch
 from torch import nn, optim
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
+from torch.utils.data.dataloader import default_collate
 from schedulefree import RAdamScheduleFree
 
 from utils.utils import set_seed
@@ -24,12 +25,11 @@ from modules.birdclef_model import BirdCLEFModel
 from modules.loss import FocalLossBCE
 from utils.augmentation import V2SAugment
 
-from torch.utils.data.dataloader import default_collate
-
 
 def make_collate_fn(augmentor):
     """
     augmentor … V2SAugment インスタンス
+    cutmix がバッチ全体を使いたいので pool を作成しておく
     """
 
     def _collate(batch):
@@ -42,29 +42,6 @@ def make_collate_fn(augmentor):
         return default_collate(out)
 
     return _collate
-
-
-# def collate_fn(batch):
-#     """Custom collate function to handle different sized spectrograms"""
-#     batch = [item for item in batch if item is not None]
-#     if len(batch) == 0:
-#         return {}
-
-#     result = {k: [] for k in batch[0].keys()}
-
-#     for item in batch:
-#         for k, v in item.items():
-#             result[k].append(v)
-
-#     for k in result:
-#         if k == "target" and isinstance(result[k][0], torch.Tensor):
-#             result[k] = torch.stack(result[k])
-#         elif k == "melspec" and isinstance(result[k][0], torch.Tensor):
-#             shapes = [v.shape for v in result[k]]
-#             if len(set(str(s) for s in shapes)) == 1:
-#                 result[k] = torch.stack(result[k])
-
-#     return result
 
 
 def get_optimizer(cfg: TrainConfig, model):
@@ -302,7 +279,7 @@ def run_training(
     """
     skf = StratifiedKFold(n_splits=cfg.num_folds, shuffle=True, random_state=cfg.seed)
 
-    aug = V2SAugment(cfg)
+    aug = V2SAugment(cfg.augmentation)
     collate_fn = make_collate_fn(aug)
 
     best_scores = []

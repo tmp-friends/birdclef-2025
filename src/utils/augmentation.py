@@ -4,6 +4,94 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+import torchaudio
+
+
+class _AddBackgroundNoise:
+    def __init__(self, noise_paths, min_snr_in_db=3.0, max_snr_in_db=30.0, p=0.5):
+        self.noise_paths = noise_paths
+        self.min_snr = min_snr_in_db
+        self.max_snr = max_snr_in_db
+        self.p = p
+
+    def __call__(self, x):
+        if random.random() > self.p or not self.noise_paths:
+            return x
+        noise_path = random.choice(self.noise_paths)
+        noise, _ = torchaudio.load(noise_path)
+        if noise.shape[1] < x.shape[-1]:
+            # pad noise
+            repeat = int(np.ceil(x.shape[-1] / noise.shape[1]))
+            noise = noise.repeat(1, repeat)[:, : x.shape[-1]]
+        else:
+            start = random.randint(0, noise.shape[1] - x.shape[-1])
+            noise = noise[:, start : start + x.shape[-1]]
+        snr = random.uniform(self.min_snr, self.max_snr)
+        x_power = x.pow(2).mean()
+        n_power = noise.pow(2).mean()
+        factor = (x_power / (10 ** (snr / 10)) / (n_power + 1e-8)).sqrt()
+        x = x + noise * factor
+
+        return x
+
+
+class _NoiseInjection:
+    def __init__(self, p=0.5, max_noise_level=0.04):
+        self.p = p
+        self.max_noise_level = max_noise_level
+
+    def __call__(self, x):
+        if random.random() > self.p:
+            return x
+        noise_level = random.uniform(0, self.max_noise_level)
+        noise = np.random.randn(*x.shape) * noise_level
+
+        return x + noise
+
+
+class _GaussianNoiseSNR:
+    def __init__(self, p=0.5, min_snr=3.0, max_snr=30.0):
+        self.p = p
+        self.min_snr = min_snr
+        self.max_snr = max_snr
+
+    def __call__(self, x):
+        if random.random() > self.p:
+            return x
+        snr = random.uniform(self.min_snr, self.max_snr)
+        x_power = np.mean(x**2)
+        noise_power = x_power / (10 ** (snr / 10))
+        noise = np.random.randn(*x.shape) * np.sqrt(noise_power)
+
+        return x + noise
+
+
+class _PinkNoiseSNR:
+    def __init__(self, p=0.5, min_snr=3.0, max_snr=30.0):
+        self.p = p
+        self.min_snr = min_snr
+        self.max_snr = max_snr
+
+    def __call__(self, x):
+        if random.random() > self.p:
+            return x
+        snr = random.uniform(self.min_snr, self.max_snr)
+        x_power = np.mean(x**2)
+        noise_power = x_power / (10 ** (snr / 10))
+        # Pink noise: 1/f noise
+        N = x.shape[-1]
+        uneven = N % 2
+        X = np.random.randn(N // 2 + 1 + uneven) + 1j * np.random.randn(
+            N // 2 + 1 + uneven
+        )
+        S = np.sqrt(np.arange(len(X)) + 1.0)
+        y = (np.fft.irfft(X / S)).real
+        y = y[:N]
+        y = y / np.std(y)
+        y = y * np.sqrt(noise_power)
+
+        return x + y
+
 
 class _FreqMask:
     def __init__(self, max_w=24, p=0.5):
@@ -15,6 +103,7 @@ class _FreqMask:
         w = random.randint(1, self.max_w)
         f0 = random.randint(0, x.size(-2) - w)
         x[..., f0 : f0 + w, :] = 0.0
+
         return x
 
 
@@ -28,6 +117,7 @@ class _TimeMask:
         w = random.randint(1, self.max_w)
         t0 = random.randint(0, x.size(-1) - w)
         x[..., :, t0 : t0 + w] = 0.0
+
         return x
 
 
@@ -40,6 +130,7 @@ class _RandGainBias:
             return x
         g = random.uniform(*self.gain)
         b = random.uniform(*self.bias)
+
         return torch.clamp(x * g + b, 0.0, 1.0)
 
 
@@ -64,6 +155,7 @@ class _CutMixRect:
         spec[..., ry : ry + rh, rx : rx + rw] = spec2[..., ry : ry + rh, rx : rx + rw]
         lam = 1 - (rw * rh) / (w * h)
         target = target * lam + tgt2 * (1 - lam)
+
         return spec, target
 
 
