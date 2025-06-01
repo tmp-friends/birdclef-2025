@@ -30,6 +30,7 @@ T_max: 10
 min_lr: 1e-6
 criterion: "FocalLossBCE"
 early_stopping: 3
+mixup_alpha: 0.2
 
 # model
 drop_rate: 0.2

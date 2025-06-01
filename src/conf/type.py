@@ -109,6 +109,7 @@ class TrainAugConfig:
     min_lr: float
     criterion: str
     early_stopping: int
+    mixup_alpha: float
     fm_w: int
     fm_p: float
     tm_w: int
