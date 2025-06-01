@@ -1,96 +1,9 @@
-# augmentations_v2s.py
 import random, math
 import numpy as np
 import torch
 import torch.nn.functional as F
 
 import torchaudio
-
-
-class _AddBackgroundNoise:
-    def __init__(self, noise_paths, min_snr_in_db=3.0, max_snr_in_db=30.0, p=0.5):
-        self.noise_paths = noise_paths
-        self.min_snr = min_snr_in_db
-        self.max_snr = max_snr_in_db
-        self.p = p
-
-    def __call__(self, x):
-        if random.random() > self.p or not self.noise_paths:
-            return x
-        noise_path = random.choice(self.noise_paths)
-        noise, _ = torchaudio.load(noise_path)
-        if noise.shape[1] < x.shape[-1]:
-            # pad noise
-            repeat = int(np.ceil(x.shape[-1] / noise.shape[1]))
-            noise = noise.repeat(1, repeat)[:, : x.shape[-1]]
-        else:
-            start = random.randint(0, noise.shape[1] - x.shape[-1])
-            noise = noise[:, start : start + x.shape[-1]]
-        snr = random.uniform(self.min_snr, self.max_snr)
-        x_power = x.pow(2).mean()
-        n_power = noise.pow(2).mean()
-        factor = (x_power / (10 ** (snr / 10)) / (n_power + 1e-8)).sqrt()
-        x = x + noise * factor
-
-        return x
-
-
-class _NoiseInjection:
-    def __init__(self, p=0.5, max_noise_level=0.04):
-        self.p = p
-        self.max_noise_level = max_noise_level
-
-    def __call__(self, x):
-        if random.random() > self.p:
-            return x
-        noise_level = random.uniform(0, self.max_noise_level)
-        noise = np.random.randn(*x.shape) * noise_level
-
-        return x + noise
-
-
-class _GaussianNoiseSNR:
-    def __init__(self, p=0.5, min_snr=3.0, max_snr=30.0):
-        self.p = p
-        self.min_snr = min_snr
-        self.max_snr = max_snr
-
-    def __call__(self, x):
-        if random.random() > self.p:
-            return x
-        snr = random.uniform(self.min_snr, self.max_snr)
-        x_power = np.mean(x**2)
-        noise_power = x_power / (10 ** (snr / 10))
-        noise = np.random.randn(*x.shape) * np.sqrt(noise_power)
-
-        return x + noise
-
-
-class _PinkNoiseSNR:
-    def __init__(self, p=0.5, min_snr=3.0, max_snr=30.0):
-        self.p = p
-        self.min_snr = min_snr
-        self.max_snr = max_snr
-
-    def __call__(self, x):
-        if random.random() > self.p:
-            return x
-        snr = random.uniform(self.min_snr, self.max_snr)
-        x_power = np.mean(x**2)
-        noise_power = x_power / (10 ** (snr / 10))
-        # Pink noise: 1/f noise
-        N = x.shape[-1]
-        uneven = N % 2
-        X = np.random.randn(N // 2 + 1 + uneven) + 1j * np.random.randn(
-            N // 2 + 1 + uneven
-        )
-        S = np.sqrt(np.arange(len(X)) + 1.0)
-        y = (np.fft.irfft(X / S)).real
-        y = y[:N]
-        y = y / np.std(y)
-        y = y * np.sqrt(noise_power)
-
-        return x + y
 
 
 class _FreqMask:
@@ -200,6 +113,107 @@ class _RandResizeTime:
         return x
 
 
+class _AddBackgroundNoise:
+    def __init__(self, noise_paths, min_snr_in_db=3.0, max_snr_in_db=30.0, p=0.5):
+        self.noise_paths = noise_paths
+        self.min_snr = min_snr_in_db
+        self.max_snr = max_snr_in_db
+        self.p = p
+
+    def __call__(self, x):
+        if random.random() > self.p or not self.noise_paths:
+            return x
+        noise_path = random.choice(self.noise_paths)
+        noise, _ = torchaudio.load(noise_path)
+        if noise.shape[1] < x.shape[-1]:
+            # pad noise
+            repeat = int(np.ceil(x.shape[-1] / noise.shape[1]))
+            noise = noise.repeat(1, repeat)[:, : x.shape[-1]]
+        else:
+            start = random.randint(0, noise.shape[1] - x.shape[-1])
+            noise = noise[:, start : start + x.shape[-1]]
+        snr = random.uniform(self.min_snr, self.max_snr)
+        x_power = x.pow(2).mean()
+        n_power = noise.pow(2).mean()
+        factor = (x_power / (10 ** (snr / 10)) / (n_power + 1e-8)).sqrt()
+        x = x + noise * factor
+
+        return x
+
+
+class _NoiseInjection:
+    def __init__(self, p=0.5, max_noise_level=0.04):
+        self.p = p
+        self.max_noise_level = max_noise_level
+
+    def __call__(self, x):
+        if random.random() > self.p:
+            return x
+        noise_level = random.uniform(0, self.max_noise_level)
+        noise = torch.randn_like(x) * noise_level
+        return x + noise
+
+
+class _GaussianNoiseSNR:
+    def __init__(self, p=0.5, min_snr=3.0, max_snr=30.0):
+        self.p = p
+        self.min_snr = min_snr
+        self.max_snr = max_snr
+
+    def __call__(self, x):
+        if random.random() > self.p:
+            return x
+        snr = random.uniform(self.min_snr, self.max_snr)
+        x_power = torch.mean(x**2)
+        noise_power = x_power / (10 ** (snr / 10))
+        noise = torch.randn_like(x) * torch.sqrt(noise_power)
+        return x + noise
+
+
+class _PinkNoiseSNR:
+    def __init__(self, p=0.5, min_snr=3.0, max_snr=30.0):
+        self.p = p
+        self.min_snr = min_snr
+        self.max_snr = max_snr
+
+    def __call__(self, x):
+        if random.random() > self.p:
+            return x
+        snr = random.uniform(self.min_snr, self.max_snr)
+        x_power = torch.mean(x**2)
+        noise_power = x_power / (10 ** (snr / 10))
+
+        # Pink noise using torch operations
+        device = x.device
+        N = x.shape[-1]
+        uneven = N % 2
+
+        # Create complex random tensor
+        real_part = torch.randn(N // 2 + 1 + uneven, device=device)
+        imag_part = torch.randn(N // 2 + 1 + uneven, device=device)
+        X_complex = torch.complex(real_part, imag_part)
+
+        # Apply 1/f filter
+        S = torch.sqrt(torch.arange(len(X_complex), device=device) + 1.0)
+        X_filtered = X_complex / S
+
+        # Inverse FFT (use torch.fft.irfft)
+        y = torch.fft.irfft(X_filtered, n=N)
+
+        # Normalize and scale to desired power
+        y = y / torch.std(y)
+        y = y * torch.sqrt(noise_power)
+
+        # Reshape to match input dimensions
+        if len(x.shape) > 1:
+            for _ in range(len(x.shape) - 1):
+                y = y.unsqueeze(0)
+            # Expand to match dimensions
+            y = y.expand_as(x)
+
+        return x + y
+
+
 class V2SAugment:
     def __init__(self, cfg):
         self.freq = _FreqMask(max_w=cfg.fm_w, p=cfg.fm_p)
@@ -207,15 +221,36 @@ class V2SAugment:
         self.gainbias = _RandGainBias(p=cfg.gb_p)
         self.resize = _RandResizeTime(p=cfg.rs_p)
         self.cutmix = _CutMixRect(p=cfg.cm_p, alpha=cfg.cm_alpha)
+        self.noise_injection = _NoiseInjection(p=0.3)
+        self.gaussian_noise = _GaussianNoiseSNR(p=0.3)
+        self.pink_noise = _PinkNoiseSNR(p=0.3)
 
     def __call__(self, sample, pool=None):
         spec, target = sample["melspec"], sample["target"]
+
+        # 1. リサイズ（時間軸方向の変形）
         spec = self.resize(spec)
+
+        # 2. マスキング操作（周波数・時間領域）
         spec = self.freq(spec)
         spec = self.time(spec)
+
+        # 3. ノイズ追加（マスク後、ゲイン調整前）
+        noise_type = random.randint(0, 2)
+        if noise_type == 0:
+            spec = self.noise_injection(spec)
+        elif noise_type == 1:
+            spec = self.gaussian_noise(spec)
+        else:
+            spec = self.pink_noise(spec)
+
+        # 4. ゲイン/バイアス調整（ノイズ追加後に振幅調整）
         spec = self.gainbias(spec)
-        if pool is not None:  # pool は (spec,target) の list
+
+        # 5. CutMix（最後に他サンプルとの混合）
+        if pool is not None:
             spec, target = self.cutmix(spec, target, pool)
+
         sample["melspec"] = spec
         sample["target"] = target
 
