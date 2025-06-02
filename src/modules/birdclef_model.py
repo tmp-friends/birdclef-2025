@@ -21,57 +21,59 @@ class BirdCLEFModel(nn.Module):
         super().__init__()
 
         self.cfg = cfg
+        try:
+            self.backbone = timm.create_model(
+                cfg.model.name,
+                pretrained=is_pretrained,
+                in_chans=cfg.model.params.in_channels,
+                drop_rate=drop_rate,
+                drop_path_rate=drop_path_rate,  # ← EfficientViT は対応していない
+            )
+        except TypeError:
+            self.backbone = timm.create_model(
+                cfg.model.name,
+                pretrained=is_pretrained,
+                in_chans=cfg.model.params.in_channels,
+            )
 
-        self.backbone = timm.create_model(
-            model_name=cfg.model.name,
-            pretrained=is_pretrained,
-            in_chans=cfg.model.params.in_channels,
-            drop_rate=drop_rate,
-            drop_path_rate=drop_path_rate,
-        )
+        # ── classifier を除去 & 出力次元を取得 ───────────────────────
+        backbone_out = self._remove_head_and_get_outdim(self.backbone)
 
-        if "efficientnet" in cfg.model.name:
-            backbone_out = self.backbone.classifier.in_features
-            self.backbone.classifier = nn.Identity()
-        elif "resnet" in cfg.mode.name:
-            backbone_out = self.backbone.fc.in_features
-            self.backbone.fc = nn.Identity()
-        else:
-            backbone_out = self.backbone.get_classifier().in_features
-            self.backbone.reset_classifier(0, "")
-
-        self.pooling = nn.AdaptiveAvgPool2d(1)
-        self.feat_dim = backbone_out
+        # ── 後段層 ──────────────────────────────────────────────────
+        self.pool = nn.AdaptiveAvgPool2d(1)
         self.classifier = nn.Linear(backbone_out, num_classes)
 
-        self.mixup_enabled = getattr(self.cfg, "mixup_alpha", 0) > 0
+        # optional mix-up
+        self.mixup_enabled = getattr(cfg, "mixup_alpha", 0) > 0
+
+    def _remove_head_and_get_outdim(self, model: nn.Module) -> int:
+        """
+        timm のモデルから全結合層を Identity に置き換え、in_features を返す
+        """
+        if hasattr(model, "classifier") and isinstance(model.classifier, nn.Linear):
+            out_dim = model.classifier.in_features
+            model.classifier = nn.Identity()
+        elif hasattr(model, "head") and hasattr(model.head, "fc"):
+            out_dim = model.head.fc.in_features
+            model.head.fc = nn.Identity()
+        else:  # Fallback (timm API)
+            out_dim = model.get_classifier().in_features
+            model.reset_classifier(0, "")
+
+        return out_dim
 
     def forward(self, x, targets=None):
         if self.training and self.mixup_enabled and targets is not None:
-            mixed_x, targets_a, targets_b, lam = self._mixup_data(x, targets)
-            x = mixed_x
-        else:
-            targets_a, targets_b, lam = None, None, None
-
-        features = self.backbone(x)
-
-        if isinstance(features, dict):
-            features = features["features"]
-
-        if len(features.shape) == 4:
-            features = self.pooling(features)
-            features = features.view(features.size(0), -1)
-
-        logits = self.classifier(features)
+            x, t_a, t_b, lam = self._mixup_data(x, targets)
+        out = self.backbone(x)
+        if isinstance(out, dict):  # ConvNeXt は dict を返す場合あり
+            out = out["features"]
+        if out.ndim == 4:  # (B,C,H,W) → GAP
+            out = self.pool(out).flatten(1)
+        logits = self.classifier(out)
 
         if self.training and self.mixup_enabled and targets is not None:
-            loss = self._mixup_criterion(
-                criterion=F.binary_cross_entropy_with_logits,
-                pred=logits,
-                y_a=targets_a,
-                y_b=targets_b,
-                lam=lam,
-            )
+            loss = self._mixup_loss(logits, t_a, t_b, lam)
             return logits, loss
 
         return logits

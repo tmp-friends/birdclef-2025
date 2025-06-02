@@ -1,0 +1,3 @@
+name: "efficientvit_b0.r224_in1k"
+params:
+  in_channels: 1

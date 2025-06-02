@@ -19,7 +19,7 @@ spectrogram_npy_path: "dummy" # 引数から指定
 
 num_folds: 5
 fold: 0
-num_epochs: 25
+num_epochs: 50
 train_batch_size: 32
 valid_batch_size: 256
 scheduler: "CosineAnnealingLR"
