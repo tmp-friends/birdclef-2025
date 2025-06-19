@@ -56,10 +56,10 @@ def process_audio(cfg, row):
         seg_len = int(cfg.spec.window_size * cfg.spec.fs)
 
         # center_audio, crop_start = random_crop(wav, seg_len, RNG)
-        # center_audio, crop_start = rms_crop(wav, seg_len, cfg.spec.fs)
-        center_audio, crop_start = rms_crop_shift(
-            wav=wav, seg_len=seg_len, sr=cfg.spec.fs
-        )
+        center_audio, crop_start = rms_crop(wav, seg_len, cfg.spec.fs)
+        # center_audio, crop_start = rms_crop_shift(
+        #     wav=wav, seg_len=seg_len, sr=cfg.spec.fs
+        # )
 
         real_len = len(center_audio)
         # --- human-voice masking -----------------------------------------
