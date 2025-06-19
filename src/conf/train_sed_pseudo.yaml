@@ -1,0 +1,88 @@
+# Pseudo label training configuration for BirdCLEF 2025
+
+hydra:
+  job:
+    name: train_sed_pseudo
+    chdir: true
+  run:
+    dir: output/${hydra.job.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+defaults:
+  - _self_
+  - dir: local
+
+# Run settings
+seed: 42
+device: 'cuda'
+
+# Data settings
+fs: 32000
+target_duration: 5
+train_duration: 10
+n_mels: 128
+hop_length: 512
+n_fft: 2048
+f_min: 0
+f_max: 16000
+normal: 80
+random_shift_s: 2.0
+
+# Model settings (same as finetune stage)
+model_name: 'seresnext26t_32x4d'
+pretrained: true
+in_channels: 1
+image_size: 256
+
+# Model features
+use_multi_resolution: false
+use_multi_head_attention: false
+use_skip_connection: false
+pool_type: 'adaptive_avg'
+drop_rate: 0.2
+drop_path_rate: 0.2
+final_dropout: 0.1
+
+# Training settings
+batch_size: 32  # Smaller for pseudo labels
+num_workers: 4
+num_folds: 5
+selected_folds: [0, 1, 2, 3, 4]
+optimizer: 'AdamW'
+weight_decay: 1e-4
+T_max: 10
+scheduler: 'CosineAnnealingLR'
+early_stopping: 5
+
+# Learning settings for pseudo training
+epochs: 20
+lr: 1e-5  # Lower learning rate for fine-tuning
+min_lr: 1e-7
+
+# Pseudo label specific settings
+train_csv: '/home/tomoya/kaggle/birdclef-2025/output/train_sed_advanced/2025-06-05/16-00-55/combined_train_with_pseudo.csv'
+pretrained_path: '/home/tomoya/kaggle/birdclef-2025/output/train_sed_advanced/2025-06-05/13-50-30'
+
+# Pseudo label hyperparameters
+pseudo_label_smoothing: 0.1      # Label smoothing for pseudo labels
+pseudo_confidence_threshold: 0.5  # Apply confidence weighting below this
+pseudo_weight: 0.7               # Global weight for pseudo labels
+
+# Sampling settings
+use_balanced_sampling: true      # Balance real vs pseudo samples
+real_sample_weight: 1.0         # Weight for real samples
+pseudo_sample_weight: 0.5       # Weight for pseudo samples
+
+# Loss settings
+use_confidence_weighting: true   # Weight loss by confidence
+gradient_clip_val: 1.0          # Gradient clipping
+
+# Augmentation settings (same as original)
+augmentation:
+  use_audio_aug: true
+  audio_aug_prob: 0.5
+  use_spec_aug: true
+  spec_aug_prob: 0.3
+  use_mixup_cutmix: true
+  mixup_cutmix_prob: 0.3
+  mixup_alpha: 0.2
+  cutmix_alpha: 0.8
