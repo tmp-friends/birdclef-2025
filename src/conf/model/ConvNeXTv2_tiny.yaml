@@ -1,3 +1,3 @@
-name: "convnextv2_tiny.fb_in22k"
+name: "convnextv2_tiny.fcmae_ft_in1k"
 params:
   in_channels: 1

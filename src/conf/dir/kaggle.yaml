@@ -1,5 +1,5 @@
 train_audio_dir: "/kaggle/input/birdclef-2025/train_audio"
-train_soundscapes_dir: "/kaggle/input/birdclef-2025/input/birdclef-2025/train_soundscapes"
+train_soundscapes_dir: "/kaggle/input/birdclef-2025/train_soundscapes"
 train_csv: "/kaggle/input/birdclef-2025/train.csv"
 taxonomy_csv: "/kaggle/input/birdclef-2025/taxonomy.csv"
 submission_csv: "/kaggle/input/birdclef-2025/sample_submission.csv"

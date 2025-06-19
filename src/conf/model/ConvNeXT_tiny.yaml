@@ -1,3 +1,0 @@
-name: "convnext_tiny.fb_in22k"
-params:
-  in_channels: 1
