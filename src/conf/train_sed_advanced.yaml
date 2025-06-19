@@ -1,0 +1,132 @@
+# Advanced SED training configuration for BirdCLEF 2025
+# Based on successful approaches from BirdCLEF 2023 2nd place solution
+
+hydra:
+  job:
+    name: train_sed_advanced
+    chdir: true
+  run:
+    dir: output/${hydra.job.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+defaults:
+  - _self_
+  - dir: local
+
+# Run settings
+seed: 42
+device: 'cuda'
+
+# Data settings
+fs: 32000
+target_duration: 5    # Duration for inference target segments
+train_duration: 10    # Duration for training segments
+n_mels: 128
+hop_length: 512
+n_fft: 2048
+f_min: 0
+f_max: 16000
+normal: 80  # Normalization value
+random_shift_s: 2.0   # Random shift for RMS crop
+
+# Model settings
+model_name: 'seresnext26t_32x4d'  # Following 2023 2nd place
+pretrained: true
+in_channels: 1
+image_size: 256  # Input image size
+
+# Enhanced model features
+use_multi_resolution: false  # Enable multi-resolution mel spectrograms
+use_multi_head_attention: false  # Enable multi-head attention
+use_skip_connection: false  # Enable skip connections
+pool_type: 'adaptive_avg'  # 'adaptive_avg', 'adaptive_max', 'gem'
+drop_rate: 0.2  # Backbone dropout
+drop_path_rate: 0.2  # Backbone drop path
+final_dropout: 0.1  # Final layer dropout
+
+# Multi-stage training configuration
+training_stages:
+  pretrain_ce:
+    epochs: 30
+    lr: 3e-4
+    min_lr: 1e-6
+    criterion: 'CrossEntropyLoss'
+    mixup_alpha: 0.2
+    cutmix_alpha: 1.0
+    use_secondary_labels: false
+
+  train_bce:
+    epochs: 25
+    lr: 1e-4
+    min_lr: 5e-7
+    criterion: 'BCEWithLogitsLoss'
+    mixup_alpha: 0.3
+    cutmix_alpha: 1.2
+    use_secondary_labels: true
+    secondary_label_weight: 0.9
+
+  finetune:
+    epochs: 15
+    lr: 5e-5
+    min_lr: 1e-7
+    criterion: 'BCEWithLogitsLoss'
+    mixup_alpha: 0.1
+    cutmix_alpha: 0.8
+    use_secondary_labels: true
+    secondary_label_weight: 0.95
+
+# Current stage (can be overridden)
+current_stage: 'pretrain_ce'
+
+# Training settings
+batch_size: 64  # Reduced from 128 due to memory constraints
+num_workers: 8
+num_folds: 5
+selected_folds: [0, 1, 2, 3, 4]
+optimizer: 'AdamW'
+weight_decay: 1e-4
+T_max: 10
+scheduler: 'CosineAnnealingLR'
+early_stopping: 5
+
+# Advanced augmentation settings
+augmentation:
+  # Audio-level augmentations
+  use_audio_aug: true
+  audio_aug_prob: 0.8
+  max_noise_gain: 0.5
+
+  # Spectrogram augmentations
+  use_spec_aug: true
+  spec_aug_prob: 0.6
+  freq_mask_param: 15
+  time_mask_param: 35
+  freq_mask_num: 2
+  time_mask_num: 2
+
+  # Mixup/CutMix
+  use_mixup_cutmix: true
+  mixup_cutmix_prob: 0.7
+
+  # Background noise (if available)
+  background_noise_dir: null
+
+# Loss function weights
+primary_label_weight: 1.0
+focal_loss_alpha: 0.25
+focal_loss_gamma: 2.0
+
+# Model checkpoint settings
+save_best_only: true
+monitor_metric: 'valid_auc'
+checkpoint_dir: './checkpoints'
+
+# Pseudo labeling settings
+pseudo_labeling:
+  confidence_threshold: 0.6
+  ensemble_method: 'mean'  # 'mean', 'max', 'vote'
+  mixing_ratio: 0.3  # 30% pseudo data
+  label_smoothing: 0.1
+
+# Inference settings
+tta_enabled: true
+tta_steps: 3
