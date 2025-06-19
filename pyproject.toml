@@ -39,4 +39,5 @@ dependencies = [
     "schedulefree>=1.4",
     "seaborn>=0.13.2",
     "torchaudio>=2.1.2",
+    "audiomentations>=0.7.0",
 ]
